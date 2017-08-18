@@ -12,7 +12,10 @@ def simple_app(environ, start_response):
     status = '200 OK'
     response_headers = [('Content-type', 'text/plain')]
     start_response(status, response_headers)
-    return [b"Hello world!\n", b"testing!"]
+    return [
+        b"Hello world!\n",
+        b"You sent a %s request" % environ['REQUEST_METHOD'],
+    ]
 
 class ReadBuffer(object):
     def __init__(self, conn, block_size=4096):
@@ -59,6 +62,9 @@ class WSGIServer(object):
 
         # Read request line
         request_line = read_buffer.readline()
+        request_method, request_uri, http_version = request_line.split(b' ', 3)
+        print("Read request line")
+        print(request_method, request_uri, http_version)
 
         # Read request headers
         headers = {}
@@ -89,7 +95,10 @@ class WSGIServer(object):
 
         # Send response
 
-        environ = {} # TODO
+        # TODO
+        environ = {
+            'REQUEST_METHOD': request_method,
+        }
 
         def start_response(status, response_headers):
             conn.send(b"HTTP/1.0 ")
