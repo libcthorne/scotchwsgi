@@ -92,8 +92,6 @@ class WSGIServer(object):
             'REQUEST_METHOD': request_method,
             'PATH_INFO': request_path.decode('ascii'),
             'QUERY_STRING': request_query.decode('ascii'),
-            'CONTENT_TYPE': headers.get(b'content-type', b'').decode('ascii'),
-            'CONTENT_LENGTH': int(headers.get(b'content-length', 0)),
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
             'SERVER_PROTOCOL': http_version.decode('ascii'),
@@ -101,6 +99,11 @@ class WSGIServer(object):
             'wsgi.errors': sys.stdout,
             'wsgi.url_scheme': 'http',
         }
+
+        if b'content-type' in headers:
+            environ['CONTENT_TYPE'] = headers[b'content-type'].decode('ascii')
+        if b'content-length' in headers:
+            environ['CONTENT_LENGTH'] = int(headers[b'content-length'])
 
         def start_response(status, response_headers):
             conn.send(b"HTTP/1.0 ")
