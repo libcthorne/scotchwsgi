@@ -106,6 +106,8 @@ class WSGIServer(object):
             environ['CONTENT_TYPE'] = headers[b'content-type'].decode('ascii')
         if b'content-length' in headers:
             environ['CONTENT_LENGTH'] = int(headers[b'content-length'])
+        if b'host' in headers:
+            environ['HTTP_HOST'] = headers[b'host'].decode('ascii')
 
         def start_response(status, response_headers):
             conn.send(b"HTTP/1.0 ")
