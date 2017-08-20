@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from flask import Flask, request
+from flask import Flask, redirect, request
 app = Flask(__name__)
 
 @app.route('/')
@@ -25,6 +25,10 @@ def post_test():
     for arg_name, arg_value in request.form.items():
         argstr += '{}: {}\n'.format(arg_name, arg_value)
     return argstr
+
+@app.route('/redirect')
+def redirect_test():
+    return redirect('/test')
 
 ################################################################
 
@@ -64,6 +68,10 @@ def run_tests():
     print(r)
     assert r.status_code == 200
     assert r.text == "arg1: test1\narg2: test2\n"
+
+    r = get_request('/redirect')
+    print(r)
+    assert r.status_code == 302
 
 def start_server():
     server = WSGIServer(HOST, PORT, app)
