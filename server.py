@@ -83,6 +83,7 @@ class WSGIServer(object):
             'REQUEST_METHOD': request_method,
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
+            'wsgi.url_scheme': 'http',
         }
 
         def start_response(status, response_headers):
