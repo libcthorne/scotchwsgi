@@ -81,6 +81,8 @@ class WSGIServer(object):
         # TODO
         environ = {
             'REQUEST_METHOD': request_method,
+            'SERVER_NAME': self.host,
+            'SERVER_PORT': str(self.port),
         }
 
         def start_response(status, response_headers):
