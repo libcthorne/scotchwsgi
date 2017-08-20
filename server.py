@@ -87,11 +87,9 @@ class WSGIServer(object):
 
         # Send response
 
-        # TODO
+        # WIP
         environ = {
             'REQUEST_METHOD': request_method,
-            'PATH_INFO': request_path.decode('ascii'),
-            'QUERY_STRING': request_query.decode('ascii'),
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
             'SERVER_PROTOCOL': http_version.decode('ascii'),
@@ -100,6 +98,10 @@ class WSGIServer(object):
             'wsgi.url_scheme': 'http',
         }
 
+        if request_path:
+            environ['PATH_INFO'] = request_path.decode('ascii')
+        if request_query:
+            environ['QUERY_STRING'] = request_query.decode('ascii')
         if b'content-type' in headers:
             environ['CONTENT_TYPE'] = headers[b'content-type'].decode('ascii')
         if b'content-length' in headers:
