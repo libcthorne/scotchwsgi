@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from flask import Flask
+from flask import Flask, request
 app = Flask(__name__)
 
 @app.route('/')
@@ -11,6 +11,13 @@ def hello_world():
 @app.route('/test')
 def hello_world_2():
     return 'Hello, World 2!'
+
+@app.route('/params_test')
+def params_test():
+    argstr = ''
+    for arg_name, arg_value in request.args.items():
+        argstr += '{}: {}\n'.format(arg_name, arg_value)
+    return argstr
 
 ################################################################
 
@@ -37,6 +44,11 @@ def run_tests():
     print(r)
     assert r.status_code == 200
     assert r.text == "Hello, World 2!"
+
+    r = get_request('/params_test?arg1=test1&arg2=test2')
+    print(r)
+    assert r.status_code == 200
+    assert r.text == "arg1: test1\narg2: test2\n"
 
 def start_server():
     server = WSGIServer(HOST, PORT, app)
