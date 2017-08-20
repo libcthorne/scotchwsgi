@@ -26,6 +26,8 @@ def get_request(path):
 def run_tests():
     r = get_request('/')
     print(r)
+    assert r.status_code == 200
+    assert r.text == "Hello, World!"
 
 def start_server():
     server = WSGIServer(HOST, PORT, app)
