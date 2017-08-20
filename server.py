@@ -81,6 +81,7 @@ class WSGIServer(object):
         # TODO
         environ = {
             'REQUEST_METHOD': request_method,
+            'PATH_INFO': request_uri.decode('ascii'),
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
             'wsgi.url_scheme': 'http',
