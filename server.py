@@ -96,6 +96,7 @@ class WSGIServer(object):
             'CONTENT_LENGTH': int(headers.get(b'content-length', 0)),
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
+            'SERVER_PROTOCOL': http_version.decode('ascii'),
             'wsgi.input': BytesIO(message_body),
             'wsgi.errors': sys.stdout,
             'wsgi.url_scheme': 'http',
