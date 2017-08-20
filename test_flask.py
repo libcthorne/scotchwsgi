@@ -19,6 +19,13 @@ def params_test():
         argstr += '{}: {}\n'.format(arg_name, arg_value)
     return argstr
 
+@app.route('/post_test', methods=['POST'])
+def post_test():
+    argstr = ''
+    for arg_name, arg_value in request.form.items():
+        argstr += '{}: {}\n'.format(arg_name, arg_value)
+    return argstr
+
 ################################################################
 
 from multiprocessing import Process
@@ -34,6 +41,9 @@ URL = "http://{}:{}".format(HOST, PORT)
 def get_request(path):
     return requests.get("{}{}".format(URL, path))
 
+def post_request(path, data):
+    return requests.post("{}{}".format(URL, path), data=data)
+
 def run_tests():
     r = get_request('/')
     print(r)
@@ -46,6 +56,11 @@ def run_tests():
     assert r.text == "Hello, World 2!"
 
     r = get_request('/params_test?arg1=test1&arg2=test2')
+    print(r)
+    assert r.status_code == 200
+    assert r.text == "arg1: test1\narg2: test2\n"
+
+    r = post_request('/post_test', data=dict(arg1='test1', arg2='test2'))
     print(r)
     assert r.status_code == 200
     assert r.text == "arg1: test1\narg2: test2\n"

@@ -1,4 +1,6 @@
 import socket
+import sys
+from io import BytesIO
 
 class ReadBuffer(object):
     def __init__(self, conn, block_size=4096):
@@ -90,8 +92,12 @@ class WSGIServer(object):
             'REQUEST_METHOD': request_method,
             'PATH_INFO': request_path.decode('ascii'),
             'QUERY_STRING': request_query.decode('ascii'),
+            'CONTENT_TYPE': headers.get(b'content-type', b'').decode('ascii'),
+            'CONTENT_LENGTH': int(headers.get(b'content-length', 0)),
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
+            'wsgi.input': BytesIO(message_body),
+            'wsgi.errors': sys.stdout,
             'wsgi.url_scheme': 'http',
         }
 
