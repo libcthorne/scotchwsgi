@@ -46,6 +46,13 @@ class WSGIServer(object):
         # Read request line
         request_line = read_buffer.readline()
         request_method, request_uri, http_version = request_line.split(b' ', 3)
+        request_uri_split = request_uri.split(b'?', 1)
+        request_path = request_uri_split[0]
+        if len(request_uri_split) > 1:
+            request_query = request_uri_split[1]
+        else:
+            request_query = b""
+
         print("Read request line")
         print(request_method, request_uri, http_version)
 
@@ -81,7 +88,8 @@ class WSGIServer(object):
         # TODO
         environ = {
             'REQUEST_METHOD': request_method,
-            'PATH_INFO': request_uri.decode('ascii'),
+            'PATH_INFO': request_path.decode('ascii'),
+            'QUERY_STRING': request_query.decode('ascii'),
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
             'wsgi.url_scheme': 'http',
