@@ -8,6 +8,10 @@ app = Flask(__name__)
 def hello_world():
     return 'Hello, World!'
 
+@app.route('/test')
+def hello_world_2():
+    return 'Hello, World 2!'
+
 ################################################################
 
 from multiprocessing import Process
@@ -28,6 +32,11 @@ def run_tests():
     print(r)
     assert r.status_code == 200
     assert r.text == "Hello, World!"
+
+    r = get_request('/test')
+    print(r)
+    assert r.status_code == 200
+    assert r.text == "Hello, World 2!"
 
 def start_server():
     server = WSGIServer(HOST, PORT, app)
