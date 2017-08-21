@@ -42,8 +42,8 @@ HOST = "localhost"
 PORT = 8080
 URL = "http://{}:{}".format(HOST, PORT)
 
-def get_request(path):
-    return requests.get("{}{}".format(URL, path))
+def get_request(path, *args, **kwargs):
+    return requests.get("{}{}".format(URL, path), *args, **kwargs)
 
 def post_request(path, data):
     return requests.post("{}{}".format(URL, path), data=data)
@@ -69,7 +69,7 @@ def run_tests():
     assert r.status_code == 200
     assert r.text == "arg1: test1\narg2: test2\n"
 
-    r = get_request('/redirect')
+    r = get_request('/redirect', allow_redirects=False)
     print(r)
     assert r.status_code == 302
 
