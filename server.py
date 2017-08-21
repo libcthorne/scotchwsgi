@@ -1,21 +1,23 @@
+import asyncio
+import functools
 import socket
 import sys
 from io import BytesIO
 
 class ReadBuffer(object):
-    def __init__(self, conn, block_size=4096):
-        self.conn = conn
+    def __init__(self, reader, block_size=4096):
+        self.reader = reader
         self.block_size = block_size
         self.bytes_buffer = b""
 
-    def fetch(self):
-        data = self.conn.recv(self.block_size)
+    async def fetch(self):
+        data = await self.reader.read(self.block_size)
         self.bytes_buffer += data
         return len(data)
 
-    def read(self, size):
+    async def read(self, size):
         while len(self.bytes_buffer) < size:
-            fetched_len = self.fetch()
+            fetched_len = await self.fetch()
             if fetched_len == 0:
                 return b""
 
@@ -24,9 +26,9 @@ class ReadBuffer(object):
 
         return blob
 
-    def readline(self):
+    async def readline(self):
         while b"\r\n" not in self.bytes_buffer:
-            fetched_len = self.fetch()
+            fetched_len = await self.fetch()
             if fetched_len == 0:
                 return b""
 
@@ -39,14 +41,14 @@ class WSGIServer(object):
         self.host = host
         self.port = port
         self.application = application
-        self.socket = socket.socket()
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    def handle_connection(self, conn):
-        read_buffer = ReadBuffer(conn)
+    async def handle_connection(self, reader, writer):
+        print("New connection: {}".format(writer.get_extra_info('peername')))
+
+        read_buffer = ReadBuffer(reader)
 
         # Read request line
-        request_line = read_buffer.readline().decode('ascii')
+        request_line = (await read_buffer.readline()).decode('ascii')
         request_method, request_uri, http_version = request_line.split(' ', 3)
         request_uri_split = request_uri.split('?', 1)
         request_path = request_uri_split[0]
@@ -62,7 +64,7 @@ class WSGIServer(object):
         headers = {}
         reading_headers = True
         while reading_headers:
-            header = read_buffer.readline().decode('ascii')
+            header = (await read_buffer.readline()).decode('ascii')
             if header == '':
                 reading_headers = False
                 break
@@ -78,7 +80,7 @@ class WSGIServer(object):
         if 'content-length' in headers:
             print("Reading body")
             # Read message body
-            message_body = read_buffer.read(int(headers['content-length']))
+            message_body = await read_buffer.read(int(headers['content-length']))
             print("Read body")
             print(message_body)
         else:
@@ -114,32 +116,47 @@ class WSGIServer(object):
         def start_response(status, response_headers):
             print("start_response", status, response_headers)
 
-            conn.send(b"HTTP/1.0 ")
-            conn.send(status.encode('ascii'))
-            conn.send(b"\r\n")
+            writer.write(b"HTTP/1.0 ")
+            writer.write(status.encode('ascii'))
+            writer.write(b"\r\n")
 
             for header_name, header_value in response_headers:
-                conn.send(header_name.encode('ascii'))
-                conn.send(b": ")
-                conn.send(header_value.encode('ascii'))
-                conn.send(b"\r\n")
+                writer.write(header_name.encode('ascii'))
+                writer.write(b": ")
+                writer.write(header_value.encode('ascii'))
+                writer.write(b"\r\n")
 
-            conn.send(b"\r\n")
+            writer.write(b"\r\n")
 
-        for response in self.application(environ, start_response):
+        print("Calling into application")
+        loop = asyncio.get_event_loop()
+        response_iter = await loop.run_in_executor(
+            executor=None, # use default
+            func=functools.partial(
+                self.application,
+                environ,
+                start_response,
+            ),
+        )
+        for response in response_iter:
             print("Write", response)
-            conn.send(response)
+            writer.write(response)
+        print("Called into application")
+
+        await writer.drain()
 
         print("Closing connection")
-        conn.close()
+        writer.close()
 
     def start(self):
-        self.socket.bind((self.host, self.port))
-        self.socket.listen()
-        self.accepting_connections = True
+        loop = asyncio.get_event_loop()
+        coro = asyncio.start_server(
+            self.handle_connection,
+            self.host,
+            self.port,
+            loop=loop,
+        )
+        server = loop.run_until_complete(coro)
 
-        while self.accepting_connections:
-            print("Listening for connection...")
-            conn, addr = self.socket.accept()
-            print("New connection: {}".format(addr))
-            self.handle_connection(conn)
+        print("Listening for connection...")
+        loop.run_forever()
