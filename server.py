@@ -4,7 +4,7 @@ import socket
 import sys
 from io import BytesIO
 
-class ReadBuffer(object):
+class AsyncReadBuffer(object):
     def __init__(self, reader, block_size=4096):
         self.reader = reader
         self.block_size = block_size
@@ -45,7 +45,7 @@ class WSGIServer(object):
     async def handle_connection(self, reader, writer):
         print("New connection: {}".format(writer.get_extra_info('peername')))
 
-        read_buffer = ReadBuffer(reader)
+        read_buffer = AsyncReadBuffer(reader)
 
         # Read request line
         request_line = (await read_buffer.readline()).decode('ascii')
