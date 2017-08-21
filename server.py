@@ -102,16 +102,22 @@ class WSGIServer(object):
             'wsgi.url_scheme': 'http',
         }
 
+        headers_to_read = headers.copy()
+
         if request_path:
             environ['PATH_INFO'] = request_path
         if request_query:
             environ['QUERY_STRING'] = request_query
         if 'content-type' in headers:
-            environ['CONTENT_TYPE'] = headers['content-type']
+            environ['CONTENT_TYPE'] = headers_to_read.pop('content-type')
         if 'content-length' in headers:
-            environ['CONTENT_LENGTH'] = int(headers['content-length'])
-        if 'host' in headers:
-            environ['HTTP_HOST'] = headers['host']
+            environ['CONTENT_LENGTH'] = int(headers_to_read.pop('content-length'))
+
+        for http_header_name, http_header_value in headers_to_read.items():
+            http_header_name = 'HTTP_{}'.format(http_header_name.upper().replace('-', '_'))
+            environ[http_header_name] = http_header_value
+
+        headers_to_read.clear()
 
         def start_response(status, response_headers):
             print("start_response", status, response_headers)
