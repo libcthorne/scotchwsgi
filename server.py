@@ -46,14 +46,14 @@ class WSGIServer(object):
         read_buffer = ReadBuffer(conn)
 
         # Read request line
-        request_line = read_buffer.readline()
-        request_method, request_uri, http_version = request_line.split(b' ', 3)
-        request_uri_split = request_uri.split(b'?', 1)
+        request_line = read_buffer.readline().decode('ascii')
+        request_method, request_uri, http_version = request_line.split(' ', 3)
+        request_uri_split = request_uri.split('?', 1)
         request_path = request_uri_split[0]
         if len(request_uri_split) > 1:
             request_query = request_uri_split[1]
         else:
-            request_query = b""
+            request_query = ''
 
         print("Read request line")
         print(request_method, request_uri, http_version)
@@ -62,12 +62,12 @@ class WSGIServer(object):
         headers = {}
         reading_headers = True
         while reading_headers:
-            header = read_buffer.readline()
-            if header == b"":
+            header = read_buffer.readline().decode('ascii')
+            if header == '':
                 reading_headers = False
                 break
 
-            header_name, header_value = header.split(b':', 1)
+            header_name, header_value = header.split(':', 1)
             header_name = header_name.lower()
             header_value = header_value.lstrip()
             headers[header_name] = header_value
@@ -75,10 +75,10 @@ class WSGIServer(object):
         print("Read headers")
         print(headers)
 
-        if b'content-length' in headers:
+        if 'content-length' in headers:
             print("Reading body")
             # Read message body
-            message_body = read_buffer.read(int(headers[b'content-length']))
+            message_body = read_buffer.read(int(headers['content-length']))
             print("Read body")
             print(message_body)
         else:
@@ -94,22 +94,22 @@ class WSGIServer(object):
             'REQUEST_METHOD': request_method,
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
-            'SERVER_PROTOCOL': http_version.decode('ascii'),
+            'SERVER_PROTOCOL': http_version,
             'wsgi.input': BytesIO(message_body),
             'wsgi.errors': sys.stdout,
             'wsgi.url_scheme': 'http',
         }
 
         if request_path:
-            environ['PATH_INFO'] = request_path.decode('ascii')
+            environ['PATH_INFO'] = request_path
         if request_query:
-            environ['QUERY_STRING'] = request_query.decode('ascii')
-        if b'content-type' in headers:
-            environ['CONTENT_TYPE'] = headers[b'content-type'].decode('ascii')
-        if b'content-length' in headers:
-            environ['CONTENT_LENGTH'] = int(headers[b'content-length'])
-        if b'host' in headers:
-            environ['HTTP_HOST'] = headers[b'host'].decode('ascii')
+            environ['QUERY_STRING'] = request_query
+        if 'content-type' in headers:
+            environ['CONTENT_TYPE'] = headers['content-type']
+        if 'content-length' in headers:
+            environ['CONTENT_LENGTH'] = int(headers['content-length'])
+        if 'host' in headers:
+            environ['HTTP_HOST'] = headers['host']
 
         def start_response(status, response_headers):
             print("start_response", status, response_headers)

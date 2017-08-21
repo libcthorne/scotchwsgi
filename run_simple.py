@@ -9,7 +9,9 @@ def simple_app(environ, start_response):
     start_response(status, response_headers)
     return [
         b"Hello world!\n",
-        b"You sent a %s request" % environ['REQUEST_METHOD'],
+        b"You sent a %s request" % (
+            environ['REQUEST_METHOD'].encode('ascii'),
+        )
     ]
 
 ################################################################
