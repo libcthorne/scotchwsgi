@@ -76,11 +76,13 @@ class WSGIServer(object):
         print(headers)
 
         if b'content-length' in headers:
+            print("Reading body")
             # Read message body
             message_body = read_buffer.read(int(headers[b'content-length']))
             print("Read body")
             print(message_body)
         else:
+            print("No body")
             message_body = b""
 
         ################################################################
@@ -110,6 +112,8 @@ class WSGIServer(object):
             environ['HTTP_HOST'] = headers[b'host'].decode('ascii')
 
         def start_response(status, response_headers):
+            print("start_response", status, response_headers)
+
             conn.send(b"HTTP/1.0 ")
             conn.send(status.encode('ascii'))
             conn.send(b"\r\n")
@@ -123,6 +127,7 @@ class WSGIServer(object):
             conn.send(b"\r\n")
 
         for response in self.application(environ, start_response):
+            print("Write", response)
             conn.send(response)
 
         print("Closing connection")
