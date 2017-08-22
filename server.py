@@ -149,6 +149,10 @@ class WSGIServer(object):
         for response in response_iter:
             print("Write", response)
             writer.write(response)
+
+        response_iter_close = getattr(response_iter, 'close', None)
+        if callable(response_iter_close):
+            response_iter.close()
         print("Called into application")
 
         await writer.drain()
