@@ -97,9 +97,13 @@ class WSGIServer(object):
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
             'SERVER_PROTOCOL': http_version,
-            'wsgi.input': BytesIO(message_body),
-            'wsgi.errors': sys.stdout,
+            'wsgi.version': (1, 0),
             'wsgi.url_scheme': 'http',
+            'wsgi.input': BytesIO(message_body),
+            'wsgi.errors': sys.stderr,
+            'wsgi.multithread': True,
+            'wsgi.multiprocess': False,
+            'wsgi.run_once': False,
         }
 
         headers_to_read = headers.copy()
