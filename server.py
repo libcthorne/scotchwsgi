@@ -134,6 +134,8 @@ class WSGIServer(object):
 
             writer.write(b"\r\n")
 
+            return writer.write
+
         print("Calling into application")
         loop = asyncio.get_event_loop()
         response_iter = await loop.run_in_executor(
