@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import socket
 import sys
 from io import BytesIO
 
