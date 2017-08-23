@@ -121,22 +121,40 @@ class WSGIServer(object):
 
         headers_to_read.clear()
 
+        headers_to_send = []
+        headers_sent = []
+
+        def write(data):
+            if not headers_to_send and not headers_sent:
+                raise AssertionError("write() before start_response()")
+
+            elif not headers_sent:
+                status, response_headers = headers_to_send[:]
+                print("Send headers", status, response_headers)
+
+                writer.write(b"HTTP/1.0 ")
+                writer.write(status.encode('ascii'))
+                writer.write(b"\r\n")
+
+                for header_name, header_value in response_headers:
+                    writer.write(header_name.encode('ascii'))
+                    writer.write(b": ")
+                    writer.write(header_value.encode('ascii'))
+                    writer.write(b"\r\n")
+
+                writer.write(b"\r\n")
+
+                headers_sent[:] = [status, response_headers]
+                headers_to_send[:] = []
+
+            writer.write(data)
+
         def start_response(status, response_headers):
             print("start_response", status, response_headers)
 
-            writer.write(b"HTTP/1.0 ")
-            writer.write(status.encode('ascii'))
-            writer.write(b"\r\n")
+            headers_to_send[:] = [status, response_headers]
 
-            for header_name, header_value in response_headers:
-                writer.write(header_name.encode('ascii'))
-                writer.write(b": ")
-                writer.write(header_value.encode('ascii'))
-                writer.write(b"\r\n")
-
-            writer.write(b"\r\n")
-
-            return writer.write
+            return write
 
         print("Calling into application")
         loop = asyncio.get_event_loop()
@@ -150,7 +168,7 @@ class WSGIServer(object):
         )
         for response in response_iter:
             print("Write", response)
-            writer.write(response)
+            write(response)
 
         response_iter_close = getattr(response_iter, 'close', None)
         if callable(response_iter_close):
