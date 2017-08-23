@@ -90,7 +90,6 @@ class WSGIServer(object):
 
         # Send response
 
-        # WIP
         environ = {
             'REQUEST_METHOD': request_method,
             'SERVER_NAME': self.host,
