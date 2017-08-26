@@ -92,6 +92,7 @@ class WSGIServer(object):
 
         environ = {
             'REQUEST_METHOD': request_method,
+            'SCRIPT_NAME': '',
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
             'SERVER_PROTOCOL': http_version,
