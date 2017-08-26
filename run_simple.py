@@ -19,7 +19,7 @@ def simple_app(environ, start_response):
 HOST = "localhost"
 PORT = 8080
 
-from server import WSGIServer
+from scotchwsgi.server import WSGIServer
 
 if __name__ == '__main__':
     server = WSGIServer(HOST, PORT, simple_app)

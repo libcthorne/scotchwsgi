@@ -37,7 +37,7 @@ from wsgiref.validate import validator
 
 import requests
 
-from server import WSGIServer
+from scotchwsgi.server import WSGIServer
 
 HOST = "localhost"
 PORT = 8080
