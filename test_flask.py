@@ -63,7 +63,8 @@ def run_tests():
     r = get_request('/params_test?arg1=test1&arg2=test2')
     print(r)
     assert r.status_code == 200
-    assert r.text == "arg1: test1\narg2: test2\n"
+    assert "arg1: test1" in r.text
+    assert "arg2: test2" in r.text
 
     r = post_request('/post_test', data=dict(arg1='test1', arg2='test2'))
     print(r)
