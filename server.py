@@ -45,11 +45,8 @@ class WSGIRequest(object):
         self.body = body
 
     @staticmethod
-    async def from_reader(reader):
-        read_buffer = AsyncReadBuffer(reader)
-
-        # Read request line
-        request_line = (await read_buffer.readline()).decode('ascii')
+    async def read_request_line(async_reader):
+        request_line = (await async_reader.readline()).decode('ascii')
         request_method, request_uri, http_version = request_line.split(' ', 3)
         request_uri_split = request_uri.split('?', 1)
         request_path = request_uri_split[0]
@@ -61,10 +58,13 @@ class WSGIRequest(object):
         print("Request line:")
         print(request_method, request_path, request_query, http_version)
 
-        # Read request headers
+        return request_method, request_path, request_query, http_version
+
+    @staticmethod
+    async def read_headers(async_reader):
         headers = {}
         while True:
-            header = (await read_buffer.readline()).decode('ascii')
+            header = (await async_reader.readline()).decode('ascii')
             if header == '':
                 break
 
@@ -76,23 +76,43 @@ class WSGIRequest(object):
         print("Headers:")
         print(headers)
 
-        # Read message body
-        if 'content-length' in headers:
+        return headers
+
+    @staticmethod
+    async def read_body(async_reader, content_length):
+        if content_length > 0:
             print("Reading body")
-            message_body = await read_buffer.read(int(headers['content-length']))
+            message_body = await async_reader.read(content_length)
             print("Body:")
             print(message_body)
         else:
             print("No body")
             message_body = b""
 
+        return message_body
+
+    @staticmethod
+    async def from_async_reader(async_reader):
+        method, path, query, http_version = await WSGIRequest.read_request_line(
+            async_reader
+        )
+
+        headers = await WSGIRequest.read_headers(
+            async_reader
+        )
+
+        body = await WSGIRequest.read_body(
+            async_reader,
+            int(headers.get('content-length', 0))
+        )
+
         return WSGIRequest(
-            method=request_method,
-            path=request_path,
-            query=request_query,
+            method=method,
+            path=path,
+            query=query,
             http_version=http_version,
             headers=headers,
-            body=message_body,
+            body=body,
         )
 
 class WSGIServer(object):
@@ -195,7 +215,7 @@ class WSGIServer(object):
     async def handle_connection(self, reader, writer):
         print("New connection: {}".format(writer.get_extra_info('peername')))
 
-        request = await WSGIRequest.from_reader(reader)
+        request = await WSGIRequest.from_async_reader(AsyncReadBuffer(reader))
         await self._send_response(request, writer)
 
         print("Closing connection")
