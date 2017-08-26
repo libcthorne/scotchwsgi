@@ -109,8 +109,9 @@ class WSGIServer(object):
 
         if request_path:
             environ['PATH_INFO'] = request_path
-        if request_query:
-            environ['QUERY_STRING'] = request_query
+
+        environ['QUERY_STRING'] = request_query if request_query else ''
+
         if 'content-type' in headers:
             environ['CONTENT_TYPE'] = headers_to_read.pop('content-type')
         if 'content-length' in headers:
