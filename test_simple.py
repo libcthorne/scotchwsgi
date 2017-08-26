@@ -9,12 +9,15 @@ def simple_app(environ, start_response):
     start_response(status, response_headers)
     return [
         b"Hello world!\n",
-        b"You sent a %s request" % environ['REQUEST_METHOD'],
+        b"You sent a %s request" % (
+            environ['REQUEST_METHOD'].encode('ascii')
+        ),
     ]
 
 ################################################################
 
 from multiprocessing import Process
+from wsgiref.validate import validator
 
 import requests
 
@@ -34,7 +37,8 @@ def run_tests():
     assert r.text == "Hello world!\nYou sent a GET request"
 
 def start_server():
-    server = WSGIServer(HOST, PORT, simple_app)
+    validator_app = validator(simple_app)
+    server = WSGIServer(HOST, PORT, validator_app)
     server.start()
 
 if __name__ == '__main__':

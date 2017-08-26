@@ -33,6 +33,7 @@ def redirect_test():
 ################################################################
 
 from multiprocessing import Process
+from wsgiref.validate import validator
 
 import requests
 
@@ -74,7 +75,8 @@ def run_tests():
     assert r.status_code == 302
 
 def start_server():
-    server = WSGIServer(HOST, PORT, app)
+    validator_app = validator(app)
+    server = WSGIServer(HOST, PORT, validator_app)
     server.start()
 
 if __name__ == '__main__':
