@@ -35,15 +35,17 @@ class AsyncReadBuffer(object):
 
         return line
 
-class WSGIServer(object):
-    def __init__(self, host, port, application):
-        self.host = host
-        self.port = port
-        self.application = application
+class WSGIRequest(object):
+    def __init__(self, method, path, query, http_version, headers, body):
+        self.method = method
+        self.path = path
+        self.query = query
+        self.http_version = http_version
+        self.headers = headers
+        self.body = body
 
-    async def handle_connection(self, reader, writer):
-        print("New connection: {}".format(writer.get_extra_info('peername')))
-
+    @staticmethod
+    async def from_reader(reader):
         read_buffer = AsyncReadBuffer(reader)
 
         # Read request line
@@ -56,16 +58,14 @@ class WSGIServer(object):
         else:
             request_query = ''
 
-        print("Read request line")
-        print(request_method, request_uri, http_version)
+        print("Request line:")
+        print(request_method, request_path, request_query, http_version)
 
         # Read request headers
         headers = {}
-        reading_headers = True
-        while reading_headers:
+        while True:
             header = (await read_buffer.readline()).decode('ascii')
             if header == '':
-                reading_headers = False
                 break
 
             header_name, header_value = header.split(':', 1)
@@ -73,55 +73,68 @@ class WSGIServer(object):
             header_value = header_value.lstrip()
             headers[header_name] = header_value
 
-        print("Read headers")
+        print("Headers:")
         print(headers)
 
+        # Read message body
         if 'content-length' in headers:
             print("Reading body")
-            # Read message body
             message_body = await read_buffer.read(int(headers['content-length']))
-            print("Read body")
+            print("Body:")
             print(message_body)
         else:
             print("No body")
             message_body = b""
 
-        ################################################################
+        return WSGIRequest(
+            method=request_method,
+            path=request_path,
+            query=request_query,
+            http_version=http_version,
+            headers=headers,
+            body=message_body,
+        )
 
-        # Send response
+class WSGIServer(object):
+    def __init__(self, host, port, application):
+        self.host = host
+        self.port = port
+        self.application = application
 
+    def _get_environ(self, request):
         environ = {
-            'REQUEST_METHOD': request_method,
+            'REQUEST_METHOD': request.method,
             'SCRIPT_NAME': '',
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
-            'SERVER_PROTOCOL': http_version,
+            'SERVER_PROTOCOL': request.http_version,
             'wsgi.version': (1, 0),
             'wsgi.url_scheme': 'http',
-            'wsgi.input': BytesIO(message_body),
+            'wsgi.input': BytesIO(request.body),
             'wsgi.errors': sys.stderr,
             'wsgi.multithread': True,
             'wsgi.multiprocess': False,
             'wsgi.run_once': False,
         }
 
-        headers_to_read = headers.copy()
+        if request.path:
+            environ['PATH_INFO'] = request.path
+        environ['QUERY_STRING'] = request.query if request.query else ''
 
-        if request_path:
-            environ['PATH_INFO'] = request_path
-
-        environ['QUERY_STRING'] = request_query if request_query else ''
-
-        if 'content-type' in headers:
-            environ['CONTENT_TYPE'] = headers_to_read.pop('content-type')
-        if 'content-length' in headers:
-            environ['CONTENT_LENGTH'] = headers_to_read.pop('content-length')
-
-        for http_header_name, http_header_value in headers_to_read.items():
+        environ_headers = request.headers.copy()
+        if 'content-type' in request.headers:
+            environ['CONTENT_TYPE'] = environ_headers.pop('content-type')
+        if 'content-length' in request.headers:
+            environ['CONTENT_LENGTH'] = environ_headers.pop('content-length')
+        for http_header_name, http_header_value in environ_headers.items():
             http_header_name = 'HTTP_{}'.format(http_header_name.upper().replace('-', '_'))
             environ[http_header_name] = http_header_value
+        environ_headers.clear()
 
-        headers_to_read.clear()
+        return environ
+
+    async def _send_response(self, request, writer):
+        environ = self._get_environ(request)
 
         headers_to_send = []
         headers_sent = []
@@ -178,6 +191,12 @@ class WSGIServer(object):
         print("Called into application")
 
         await writer.drain()
+
+    async def handle_connection(self, reader, writer):
+        print("New connection: {}".format(writer.get_extra_info('peername')))
+
+        request = await WSGIRequest.from_reader(reader)
+        await self._send_response(request, writer)
 
         print("Closing connection")
         writer.close()
