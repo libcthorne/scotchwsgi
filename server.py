@@ -114,7 +114,7 @@ class WSGIServer(object):
         if 'content-type' in headers:
             environ['CONTENT_TYPE'] = headers_to_read.pop('content-type')
         if 'content-length' in headers:
-            environ['CONTENT_LENGTH'] = int(headers_to_read.pop('content-length'))
+            environ['CONTENT_LENGTH'] = headers_to_read.pop('content-length')
 
         for http_header_name, http_header_value in headers_to_read.items():
             http_header_name = 'HTTP_{}'.format(http_header_name.upper().replace('-', '_'))
