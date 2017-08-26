@@ -233,3 +233,10 @@ class WSGIServer(object):
 
         print("Listening for connection...")
         loop.run_forever()
+
+def make_server(host, port, application):
+    return WSGIServer(
+        host=host,
+        port=port,
+        application=application,
+    )
