@@ -3,7 +3,7 @@ import functools
 import sys
 from io import BytesIO
 
-class AsyncReadBuffer(object):
+class WSGIAsyncReader(object):
     def __init__(self, reader, block_size=4096):
         self.reader = reader
         self.block_size = block_size
@@ -215,7 +215,7 @@ class WSGIServer(object):
     async def handle_connection(self, reader, writer):
         print("New connection: {}".format(writer.get_extra_info('peername')))
 
-        request = await WSGIRequest.from_async_reader(AsyncReadBuffer(reader))
+        request = await WSGIRequest.from_async_reader(WSGIAsyncReader(reader))
         await self._send_response(request, writer)
 
         print("Closing connection")
