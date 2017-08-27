@@ -7,4 +7,7 @@ setup(
     author_email='libcthorne@gmail.com',
     url='https://cthorne.me',
     packages=['scotchwsgi'],
+    scripts=[
+        'bin/scotchwsgi',
+    ],
 )
