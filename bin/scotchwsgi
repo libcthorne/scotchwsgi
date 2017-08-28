@@ -9,7 +9,7 @@ import sys
 from scotchwsgi.server import make_server
 
 parser = argparse.ArgumentParser()
-parser.add_argument('app_package', help="package with WSGI application 'app' variable defined")
+parser.add_argument('app_package', help="module with WSGI application 'app' variable defined")
 parser.add_argument('--host', default='localhost', help="server hostname")
 parser.add_argument('--port', default=8080, help="server port number")
 
