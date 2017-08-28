@@ -253,7 +253,7 @@ class WSGIServer(object):
 
         server = loop.run_until_complete(coro)
 
-        logger.info("Listening for connection...")
+        logger.info("Listening on %s:%d", self.host, self.port)
         loop.run_forever()
 
 def make_server(*args, **kwargs):
