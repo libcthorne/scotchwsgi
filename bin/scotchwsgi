@@ -12,7 +12,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('app_package', help="module with WSGI application 'app' variable defined")
 parser.add_argument('--host', default='localhost', help="server hostname")
 parser.add_argument('--port', default=8080, help="server port number")
-
+parser.add_argument('--certfile', help="SSL public key certificate file")
+parser.add_argument('--keyfile', help="SSL private key file")
+parser.add_argument('--ca_certs', help="SSL CA certificate chain file")
 args = parser.parse_args()
 
 sys.path.append(os.getcwd())
@@ -21,5 +23,19 @@ if not hasattr(app_package, 'app'):
     print("'app' not found in {}".format(args.app_package))
     sys.exit(1)
 
-server = make_server(args.host, args.port, app_package.app)
+if args.certfile:
+    ssl_config = {
+        'certfile': args.certfile,
+        'keyfile': args.keyfile,
+        'ca_certs': args.ca_certs,
+    }
+else:
+    ssl_config = None
+
+server = make_server(
+    args.host,
+    args.port,
+    app_package.app,
+    ssl_config=ssl_config,
+)
 server.start()

@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import socket
+import ssl
 import sys
 from io import BytesIO
 
@@ -117,10 +118,11 @@ class WSGIRequest(object):
         )
 
 class WSGIServer(object):
-    def __init__(self, host, port, application):
+    def __init__(self, host, port, application, ssl_config=None):
         self.host = host
         self.port = port
         self.application = application
+        self.ssl_config = ssl_config
 
     def _get_environ(self, request):
         environ = {
@@ -228,6 +230,13 @@ class WSGIServer(object):
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.host, self.port))
+        if self.ssl_config:
+            print("Using SSL")
+            sock = ssl.wrap_socket(
+                sock,
+                server_side=True,
+                **self.ssl_config,
+            )
 
         coro = asyncio.start_server(
             self.handle_connection,
@@ -240,9 +249,5 @@ class WSGIServer(object):
         print("Listening for connection...")
         loop.run_forever()
 
-def make_server(host, port, application):
-    return WSGIServer(
-        host=host,
-        port=port,
-        application=application,
-    )
+def make_server(*args, **kwargs):
+    return WSGIServer(*args, **kwargs)
