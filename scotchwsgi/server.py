@@ -196,8 +196,18 @@ class WSGIServer(object):
 
             writer.write(data)
 
-        def start_response(status, response_headers):
-            logger.debug("start_response %s %s", status, response_headers)
+        def start_response(status, response_headers, exc_info=None):
+            logger.debug("start_response %s %s %s", status, response_headers, exc_info)
+
+            if exc_info:
+                try:
+                    if headers_sent:
+                        # reraise original exception if headers already sent
+                        raise exc_info[1].with_traceback(exc_info[2])
+                finally:
+                    exc_info = None # avoid dangling circular ref
+            elif headers_sent:
+                raise AssertionError("Headers already set")
 
             headers_to_send[:] = [status, response_headers]
 
