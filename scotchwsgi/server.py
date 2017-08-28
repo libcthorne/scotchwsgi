@@ -53,21 +53,21 @@ class WSGIRequest(object):
     @staticmethod
     async def read_request_line(async_reader):
         request_line = (await async_reader.readline()).decode('ascii')
-        request_method, request_uri, http_version = request_line.split(' ', 3)
-        request_uri_split = request_uri.split('?', 1)
-        request_path = request_uri_split[0]
-        if len(request_uri_split) > 1:
-            request_query = request_uri_split[1]
-        else:
-            request_query = ''
+        logger.info("Received request %s", request_line)
 
-        logger.info(
-            "Received request %s %s%s %s",
-            request_method,
-            request_path,
-            request_query,
-            http_version,
-        )
+        if request_line:
+            request_method, request_uri, http_version = request_line.split(' ', 3)
+            request_uri_split = request_uri.split('?', 1)
+            request_path = request_uri_split[0]
+            if len(request_uri_split) > 1:
+                request_query = request_uri_split[1]
+            else:
+                request_query = ''
+        else:
+            request_method = ''
+            request_path = ''
+            request_query = ''
+            http_version = ''
 
         return request_method, request_path, request_query, http_version
 
@@ -139,6 +139,8 @@ class WSGIServer(object):
             'SERVER_NAME': self.host,
             'SERVER_PORT': str(self.port),
             'SERVER_PROTOCOL': request.http_version,
+            'PATH_INFO': request.path,
+            'QUERY_STRING': request.query,
             'wsgi.version': (1, 0),
             'wsgi.url_scheme': 'http',
             'wsgi.input': BytesIO(request.body),
@@ -148,8 +150,7 @@ class WSGIServer(object):
             'wsgi.run_once': False,
         }
 
-        if request.path:
-            environ['PATH_INFO'] = request.path
+        environ['PATH_INFO'] = request.path
         environ['QUERY_STRING'] = request.query if request.query else ''
 
         environ_headers = request.headers.copy()
