@@ -202,6 +202,7 @@ class WSGIServer(object):
             if exc_info:
                 try:
                     if headers_sent:
+                        logger.debug("Reraising application exception")
                         # reraise original exception if headers already sent
                         raise exc_info[1].with_traceback(exc_info[2])
                 finally:
@@ -223,16 +224,20 @@ class WSGIServer(object):
                 start_response,
             ),
         )
-        for response in response_iter:
-            logger.debug("Write %s", response)
-            write(response)
 
-        response_iter_close = getattr(response_iter, 'close', None)
-        if callable(response_iter_close):
-            response_iter.close()
-        logger.debug("Called into application")
+        try:
+            for response in response_iter:
+                logger.debug("Write %s", response)
+                write(response)
 
-        await writer.drain()
+            await writer.drain()
+        except Exception as e:
+            logger.error("Application aborted: %r", e)
+        finally:
+            response_iter_close = getattr(response_iter, 'close', None)
+            if callable(response_iter_close):
+                response_iter.close()
+            logger.debug("Called into application")
 
     async def handle_connection(self, reader, writer):
         logger.info("New connection: %s", writer.get_extra_info('peername'))

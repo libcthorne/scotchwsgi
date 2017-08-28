@@ -27,10 +27,9 @@ def error_after_write(start_response):
         raise Exception("something bad happened")
 
     try:
-        return [
-            b"So far so good",
-            error(),
-        ]
+        yield b"So far so good"
+        error()
+        yield b"Don't send me"
     except:
         status = '500 ERROR'
         response_headers = [('Content-type', 'text/plain')]
@@ -68,12 +67,9 @@ def run_tests():
     assert r.status_code == 500
     assert r.text == "Something went wrong"
 
-    raised_top_level = False
-    try:
-        r = get_request('/error_after_write')
-    except:
-        raised_top_level = True
-    assert raised_top_level
+    r = get_request('/error_after_write')
+    assert r.status_code == 200
+    assert "Don't send me" not in r.text
 
 def start_server():
     validator_app = validator(error_app)
