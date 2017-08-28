@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import socket
 import sys
 from io import BytesIO
 
@@ -223,12 +224,17 @@ class WSGIServer(object):
 
     def start(self):
         loop = asyncio.get_event_loop()
+
+        sock = socket.socket()
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((self.host, self.port))
+
         coro = asyncio.start_server(
             self.handle_connection,
-            self.host,
-            self.port,
             loop=loop,
+            sock=sock,
         )
+
         server = loop.run_until_complete(coro)
 
         print("Listening for connection...")
