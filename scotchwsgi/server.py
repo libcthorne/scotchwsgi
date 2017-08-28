@@ -1,9 +1,13 @@
 import asyncio
 import functools
+import logging
 import socket
 import ssl
 import sys
 from io import BytesIO
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class WSGIAsyncReader(object):
     def __init__(self, reader, block_size=4096):
@@ -57,8 +61,13 @@ class WSGIRequest(object):
         else:
             request_query = ''
 
-        print("Request line:")
-        print(request_method, request_path, request_query, http_version)
+        logger.info(
+            "Received request %s %s%s %s",
+            request_method,
+            request_path,
+            request_query,
+            http_version,
+        )
 
         return request_method, request_path, request_query, http_version
 
@@ -75,20 +84,18 @@ class WSGIRequest(object):
             header_value = header_value.lstrip()
             headers[header_name] = header_value
 
-        print("Headers:")
-        print(headers)
+        logger.debug("Headers: %s", headers)
 
         return headers
 
     @staticmethod
     async def read_body(async_reader, content_length):
         if content_length > 0:
-            print("Reading body")
+            logger.debug("Reading body")
             message_body = await async_reader.read(content_length)
-            print("Body:")
-            print(message_body)
+            logger.debug("Body: %s", message_body)
         else:
-            print("No body")
+            logger.debug("No body")
             message_body = b""
 
         return message_body
@@ -168,7 +175,7 @@ class WSGIServer(object):
 
             elif not headers_sent:
                 status, response_headers = headers_to_send[:]
-                print("Send headers", status, response_headers)
+                logger.debug("Send headers %s %s", status, response_headers)
 
                 writer.write(b"HTTP/1.0 ")
                 writer.write(status.encode('ascii'))
@@ -188,13 +195,13 @@ class WSGIServer(object):
             writer.write(data)
 
         def start_response(status, response_headers):
-            print("start_response", status, response_headers)
+            logger.debug("start_response %s %s", status, response_headers)
 
             headers_to_send[:] = [status, response_headers]
 
             return write
 
-        print("Calling into application")
+        logger.debug("Calling into application")
         loop = asyncio.get_event_loop()
         response_iter = await loop.run_in_executor(
             executor=None, # use default
@@ -205,23 +212,23 @@ class WSGIServer(object):
             ),
         )
         for response in response_iter:
-            print("Write", response)
+            logger.debug("Write %s", response)
             write(response)
 
         response_iter_close = getattr(response_iter, 'close', None)
         if callable(response_iter_close):
             response_iter.close()
-        print("Called into application")
+        logger.debug("Called into application")
 
         await writer.drain()
 
     async def handle_connection(self, reader, writer):
-        print("New connection: {}".format(writer.get_extra_info('peername')))
+        logger.info("New connection: %s", writer.get_extra_info('peername'))
 
         request = await WSGIRequest.from_async_reader(WSGIAsyncReader(reader))
         await self._send_response(request, writer)
 
-        print("Closing connection")
+        logger.debug("Closing connection")
         writer.close()
 
     def start(self):
@@ -231,7 +238,7 @@ class WSGIServer(object):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.host, self.port))
         if self.ssl_config:
-            print("Using SSL")
+            logger.info("Using SSL")
             sock = ssl.wrap_socket(
                 sock,
                 server_side=True,
@@ -246,7 +253,7 @@ class WSGIServer(object):
 
         server = loop.run_until_complete(coro)
 
-        print("Listening for connection...")
+        logger.info("Listening for connection...")
         loop.run_forever()
 
 def make_server(*args, **kwargs):
