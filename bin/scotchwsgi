@@ -18,6 +18,7 @@ parser.add_argument('--port', default=8080, help="server port number", type=int)
 parser.add_argument('--certfile', help="SSL public key certificate file")
 parser.add_argument('--keyfile', help="SSL private key file")
 parser.add_argument('--ca_certs', help="SSL CA certificate chain file")
+parser.add_argument('--backlog', help="Max number of queued connections (default: 100)", type=int, default=100)
 args = parser.parse_args()
 
 sys.path.append(os.getcwd())
@@ -40,5 +41,6 @@ server = make_server(
     args.port,
     app_package.app,
     ssl_config=ssl_config,
+    backlog=args.backlog,
 )
 server.start()

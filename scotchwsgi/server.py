@@ -125,11 +125,12 @@ class WSGIRequest(object):
         )
 
 class WSGIServer(object):
-    def __init__(self, host, port, application, ssl_config=None):
+    def __init__(self, host, port, application, ssl_config=None, backlog=None):
         self.host = host
         self.port = port
         self.application = application
         self.ssl_config = ssl_config
+        self.backlog = backlog
 
     def _get_environ(self, request):
         environ = {
@@ -245,12 +246,14 @@ class WSGIServer(object):
                 **self.ssl_config,
             )
 
-        coro = asyncio.start_server(
-            self.handle_connection,
-            loop=loop,
-            sock=sock,
-        )
+        server_kwargs = {
+            'loop': loop,
+            'sock': sock,
+        }
+        if self.backlog:
+            server_kwargs['backlog'] = self.backlog
 
+        coro = asyncio.start_server(self.handle_connection, **server_kwargs)
         server = loop.run_until_complete(coro)
 
         logger.info("Listening on %s:%d", self.host, self.port)
