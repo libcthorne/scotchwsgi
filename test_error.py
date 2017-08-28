@@ -29,12 +29,11 @@ def error_after_write(start_response):
     try:
         yield b"So far so good"
         error()
-        yield b"Don't send me"
     except:
         status = '500 ERROR'
         response_headers = [('Content-type', 'text/plain')]
         start_response(status, response_headers, sys.exc_info())
-        return []
+        yield b"Don't send me"
 
 def error_app(environ, start_response):
     route = environ['PATH_INFO']
