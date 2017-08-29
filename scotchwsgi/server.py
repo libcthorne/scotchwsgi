@@ -232,6 +232,7 @@ class WSGIServer(object):
                 logger.debug("Write %s", response)
                 write(response)
 
+            # TODO: this should be in write, work out how to call it there
             await writer.drain()
         except Exception as e:
             logger.error("Application aborted: %r", e)
