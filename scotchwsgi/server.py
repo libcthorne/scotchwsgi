@@ -6,6 +6,8 @@ import ssl
 import sys
 from io import BytesIO
 
+STR_ENCODING = 'latin-1'
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ class WSGIRequest(object):
 
     @staticmethod
     async def read_request_line(async_reader):
-        request_line = (await async_reader.readline()).decode('ascii')
+        request_line = (await async_reader.readline()).decode(STR_ENCODING)
         logger.info("Received request %s", request_line)
 
         if request_line:
@@ -75,7 +77,7 @@ class WSGIRequest(object):
     async def read_headers(async_reader):
         headers = {}
         while True:
-            header = (await async_reader.readline()).decode('ascii')
+            header = (await async_reader.readline()).decode(STR_ENCODING)
             if header == '':
                 break
 
@@ -180,13 +182,13 @@ class WSGIServer(object):
                 logger.debug("Send headers %s %s", status, response_headers)
 
                 writer.write(b"HTTP/1.0 ")
-                writer.write(status.encode('ascii'))
+                writer.write(status.encode(STR_ENCODING))
                 writer.write(b"\r\n")
 
                 for header_name, header_value in response_headers:
-                    writer.write(header_name.encode('ascii'))
+                    writer.write(header_name.encode(STR_ENCODING))
                     writer.write(b": ")
-                    writer.write(header_value.encode('ascii'))
+                    writer.write(header_value.encode(STR_ENCODING))
                     writer.write(b"\r\n")
 
                 writer.write(b"\r\n")
