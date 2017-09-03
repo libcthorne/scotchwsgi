@@ -5,6 +5,11 @@ import ssl
 import sys
 from io import BytesIO
 
+import gevent
+import gevent.monkey
+import gevent.pool
+
+MAX_CONNECTIONS = 1000
 STR_ENCODING = 'latin-1'
 
 logging.basicConfig(level=logging.INFO)
@@ -114,7 +119,7 @@ class WSGIServer(object):
             'wsgi.url_scheme': 'http',
             'wsgi.input': BytesIO(request.body),
             'wsgi.errors': sys.stderr,
-            'wsgi.multithread': False,
+            'wsgi.multithread': True,
             'wsgi.multiprocess': False,
             'wsgi.run_once': False,
         }
@@ -223,6 +228,8 @@ class WSGIServer(object):
         conn.close()
 
     def start(self):
+        gevent.monkey.patch_all()
+
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.host, self.port))
@@ -241,9 +248,11 @@ class WSGIServer(object):
 
         logger.info("Listening on %s:%d", self.host, self.port)
 
+        pool = gevent.pool.Pool(size=MAX_CONNECTIONS)
+
         while True:
             conn, addr = sock.accept()
-            self.handle_connection(conn, addr)
+            pool.spawn(self.handle_connection, conn, addr)
 
 def make_server(*args, **kwargs):
     return WSGIServer(*args, **kwargs)

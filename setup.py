@@ -6,6 +6,9 @@ setup(
     author='Christopher Thorne',
     author_email='libcthorne@gmail.com',
     url='https://cthorne.me',
+    install_requires=[
+        'gevent',
+    ],
     packages=['scotchwsgi'],
     scripts=[
         'bin/scotchwsgi',
