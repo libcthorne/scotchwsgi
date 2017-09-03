@@ -1,4 +1,3 @@
-import asyncio
 import functools
 import logging
 import socket
@@ -11,38 +10,6 @@ STR_ENCODING = 'latin-1'
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class WSGIAsyncReader(object):
-    def __init__(self, reader, block_size=4096):
-        self.reader = reader
-        self.block_size = block_size
-        self.bytes_buffer = b""
-
-    async def fetch(self):
-        data = await self.reader.read(self.block_size)
-        self.bytes_buffer += data
-        return len(data)
-
-    async def read(self, size):
-        while len(self.bytes_buffer) < size:
-            fetched_len = await self.fetch()
-            if fetched_len == 0:
-                return b""
-
-        blob = self.bytes_buffer[:size]
-        self.bytes_buffer = self.bytes_buffer[size:]
-
-        return blob
-
-    async def readline(self):
-        while b"\r\n" not in self.bytes_buffer:
-            fetched_len = await self.fetch()
-            if fetched_len == 0:
-                return b""
-
-        line, self.bytes_buffer = self.bytes_buffer.split(b"\r\n", 1)
-
-        return line
-
 class WSGIRequest(object):
     def __init__(self, method, path, query, http_version, headers, body):
         self.method = method
@@ -53,8 +20,8 @@ class WSGIRequest(object):
         self.body = body
 
     @staticmethod
-    async def read_request_line(async_reader):
-        request_line = (await async_reader.readline()).decode(STR_ENCODING)
+    def read_request_line(reader):
+        request_line = reader.readline().decode(STR_ENCODING)
         logger.info("Received request %s", request_line)
 
         if request_line:
@@ -74,10 +41,10 @@ class WSGIRequest(object):
         return request_method, request_path, request_query, http_version
 
     @staticmethod
-    async def read_headers(async_reader):
+    def read_headers(reader):
         headers = {}
         while True:
-            header = (await async_reader.readline()).decode(STR_ENCODING)
+            header = reader.readline().decode(STR_ENCODING).replace('\r\n', '\n').rstrip('\n')
             if header == '':
                 break
 
@@ -91,10 +58,10 @@ class WSGIRequest(object):
         return headers
 
     @staticmethod
-    async def read_body(async_reader, content_length):
+    def read_body(reader, content_length):
         if content_length > 0:
             logger.debug("Reading body")
-            message_body = await async_reader.read(content_length)
+            message_body = reader.read(content_length)
             logger.debug("Body: %s", message_body)
         else:
             logger.debug("No body")
@@ -103,17 +70,17 @@ class WSGIRequest(object):
         return message_body
 
     @staticmethod
-    async def from_async_reader(async_reader):
-        method, path, query, http_version = await WSGIRequest.read_request_line(
-            async_reader
+    def from_reader(reader):
+        method, path, query, http_version = WSGIRequest.read_request_line(
+            reader
         )
 
-        headers = await WSGIRequest.read_headers(
-            async_reader
+        headers = WSGIRequest.read_headers(
+            reader
         )
 
-        body = await WSGIRequest.read_body(
-            async_reader,
+        body = WSGIRequest.read_body(
+            reader,
             int(headers.get('content-length', 0))
         )
 
@@ -147,7 +114,7 @@ class WSGIServer(object):
             'wsgi.url_scheme': 'http',
             'wsgi.input': BytesIO(request.body),
             'wsgi.errors': sys.stderr,
-            'wsgi.multithread': True,
+            'wsgi.multithread': False,
             'wsgi.multiprocess': False,
             'wsgi.run_once': False,
         }
@@ -167,7 +134,7 @@ class WSGIServer(object):
 
         return environ
 
-    async def _send_response(self, request, writer):
+    def _send_response(self, request, writer):
         environ = self._get_environ(request)
 
         headers_to_send = []
@@ -197,6 +164,7 @@ class WSGIServer(object):
                 headers_to_send[:] = []
 
             writer.write(data)
+            writer.flush()
 
         def start_response(status, response_headers, exc_info=None):
             logger.debug("start_response %s %s %s", status, response_headers, exc_info)
@@ -217,23 +185,12 @@ class WSGIServer(object):
             return write
 
         logger.debug("Calling into application")
-        loop = asyncio.get_event_loop()
-        response_iter = await loop.run_in_executor(
-            executor=None, # use default
-            func=functools.partial(
-                self.application,
-                environ,
-                start_response,
-            ),
-        )
+        response_iter = self.application(environ, start_response)
 
         try:
             for response in response_iter:
                 logger.debug("Write %s", response)
                 write(response)
-
-            # TODO: this should be in write, work out how to call it there
-            await writer.drain()
         except Exception as e:
             logger.error("Application aborted: %r", e)
         finally:
@@ -242,18 +199,30 @@ class WSGIServer(object):
                 response_iter.close()
             logger.debug("Called into application")
 
-    async def handle_connection(self, reader, writer):
-        logger.info("New connection: %s", writer.get_extra_info('peername'))
+    def handle_connection(self, conn, addr):
+        logger.info("New connection: %s", addr)
 
-        request = await WSGIRequest.from_async_reader(WSGIAsyncReader(reader))
-        await self._send_response(request, writer)
+        reader = conn.makefile('rb')
+        writer = conn.makefile('wb')
+
+        request = WSGIRequest.from_reader(reader)
+        self._send_response(request, writer)
 
         logger.debug("Closing connection")
-        writer.close()
+
+        try:
+            reader.close()
+        except IOError:
+            pass
+
+        try:
+            writer.close()
+        except IOError:
+            pass
+
+        conn.close()
 
     def start(self):
-        loop = asyncio.get_event_loop()
-
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.host, self.port))
@@ -265,18 +234,16 @@ class WSGIServer(object):
                 **self.ssl_config,
             )
 
-        server_kwargs = {
-            'loop': loop,
-            'sock': sock,
-        }
         if self.backlog:
-            server_kwargs['backlog'] = self.backlog
-
-        coro = asyncio.start_server(self.handle_connection, **server_kwargs)
-        server = loop.run_until_complete(coro)
+            sock.listen(self.backlog)
+        else:
+            sock.listen()
 
         logger.info("Listening on %s:%d", self.host, self.port)
-        loop.run_forever()
+
+        while True:
+            conn, addr = sock.accept()
+            self.handle_connection(conn, addr)
 
 def make_server(*args, **kwargs):
     return WSGIServer(*args, **kwargs)
