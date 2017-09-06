@@ -16,6 +16,7 @@ def simple_app(environ, start_response):
 
 ################################################################
 
+import logging
 from multiprocessing import Process
 from wsgiref.validate import validator
 
@@ -26,6 +27,8 @@ from scotchwsgi.server import WSGIServer
 HOST = "localhost"
 PORT = 8080
 URL = "http://{}:{}".format(HOST, PORT)
+
+logging.basicConfig(level=logging.INFO)
 
 def get_request(path):
     return requests.get("{}{}".format(URL, path))

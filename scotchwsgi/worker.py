@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from io import BytesIO
 
@@ -19,6 +20,8 @@ class WSGIWorker(object):
         self.port = port
 
     def start(self):
+        logger.info("Worker starting (PID: %d)", os.getpid())
+
         gevent.monkey.patch_all()
         pool = gevent.pool.Pool(size=const.MAX_CONNECTIONS)
 

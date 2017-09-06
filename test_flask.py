@@ -1,7 +1,12 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import logging
+
 from flask import Flask, redirect, request
+
+logging.basicConfig(level=logging.INFO)
+
 app = Flask(__name__)
 
 @app.route('/')
