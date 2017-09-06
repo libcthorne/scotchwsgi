@@ -1,6 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 # From PEP 3333
 def simple_app(environ, start_response):
     """Simplest possible application object"""
