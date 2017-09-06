@@ -1,5 +1,6 @@
 import functools
 import logging
+import multiprocessing
 import ssl
 import sys
 from io import BytesIO
@@ -267,7 +268,10 @@ class WSGIServer(object):
             self.host,
             self.port
         )
-        worker.start()
+
+        worker_process = multiprocessing.Process(target=worker.start)
+        worker_process.start()
+        worker_process.join()
 
 def make_server(*args, **kwargs):
     return WSGIServer(*args, **kwargs)
