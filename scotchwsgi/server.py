@@ -1,6 +1,5 @@
 import functools
 import logging
-import socket
 import ssl
 import sys
 from io import BytesIO
@@ -8,6 +7,7 @@ from io import BytesIO
 import gevent
 import gevent.monkey
 import gevent.pool
+from gevent import socket
 
 MAX_CONNECTIONS = 1000
 STR_ENCODING = 'latin-1'
@@ -98,13 +98,20 @@ class WSGIRequest(object):
             body=body,
         )
 
-class WSGIServer(object):
-    def __init__(self, host, port, application, ssl_config=None, backlog=None):
+class WSGIWorker(object):
+    def __init__(self, application, sock, host, port):
+        self.application = application
+        self.sock = sock
         self.host = host
         self.port = port
-        self.application = application
-        self.ssl_config = ssl_config
-        self.backlog = backlog
+
+    def start(self):
+        gevent.monkey.patch_all()
+        pool = gevent.pool.Pool(size=MAX_CONNECTIONS)
+
+        while True:
+            conn, addr = self.sock.accept()
+            pool.spawn(self.handle_connection, conn, addr)
 
     def _get_environ(self, request):
         environ = {
@@ -120,7 +127,7 @@ class WSGIServer(object):
             'wsgi.input': BytesIO(request.body),
             'wsgi.errors': sys.stderr,
             'wsgi.multithread': True,
-            'wsgi.multiprocess': False,
+            'wsgi.multiprocess': True,
             'wsgi.run_once': False,
         }
 
@@ -227,9 +234,15 @@ class WSGIServer(object):
 
         conn.close()
 
-    def start(self):
-        gevent.monkey.patch_all()
+class WSGIServer(object):
+    def __init__(self, host, port, application, ssl_config=None, backlog=None):
+        self.host = host
+        self.port = port
+        self.application = application
+        self.ssl_config = ssl_config
+        self.backlog = backlog
 
+    def start(self):
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.host, self.port))
@@ -248,11 +261,13 @@ class WSGIServer(object):
 
         logger.info("Listening on %s:%d", self.host, self.port)
 
-        pool = gevent.pool.Pool(size=MAX_CONNECTIONS)
-
-        while True:
-            conn, addr = sock.accept()
-            pool.spawn(self.handle_connection, conn, addr)
+        worker = WSGIWorker(
+            self.application,
+            sock,
+            self.host,
+            self.port
+        )
+        worker.start()
 
 def make_server(*args, **kwargs):
     return WSGIServer(*args, **kwargs)
