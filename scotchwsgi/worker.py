@@ -1,5 +1,6 @@
 import logging
 import os
+import signal
 import sys
 import time
 from io import BytesIO
@@ -24,6 +25,9 @@ class WSGIWorker(object):
 
     def start(self):
         logger.info("Worker starting (PID: %d)", os.getpid())
+
+        # Ignore interrupts to disable KeyboardInterrupt being logged
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         gevent.monkey.patch_all()
         pool = gevent.pool.Pool(size=const.MAX_CONNECTIONS)
