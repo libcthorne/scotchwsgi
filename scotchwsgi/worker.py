@@ -1,11 +1,13 @@
 import logging
 import os
 import sys
+import time
 from io import BytesIO
 
 import gevent
 import gevent.monkey
 import gevent.pool
+import gevent.server
 
 from scotchwsgi import const
 from scotchwsgi.request import WSGIRequest
@@ -13,11 +15,12 @@ from scotchwsgi.request import WSGIRequest
 logger = logging.getLogger(__name__)
 
 class WSGIWorker(object):
-    def __init__(self, application, sock, host, port):
+    def __init__(self, application, sock, host, port, parent_pid):
         self.application = application
         self.sock = sock
         self.host = host
         self.port = port
+        self.parent_pid = parent_pid
 
     def start(self):
         logger.info("Worker starting (PID: %d)", os.getpid())
@@ -25,9 +28,18 @@ class WSGIWorker(object):
         gevent.monkey.patch_all()
         pool = gevent.pool.Pool(size=const.MAX_CONNECTIONS)
 
+        server = gevent.server.StreamServer(
+            self.sock,
+            self.handle_connection,
+            spawn=pool,
+        )
+        server.start()
+
         while True:
-            conn, addr = self.sock.accept()
-            pool.spawn(self.handle_connection, conn, addr)
+            if os.getppid() != self.parent_pid:
+                logger.info("Worker parent changed, exiting")
+                break
+            time.sleep(1)
 
     def _get_environ(self, request):
         environ = {

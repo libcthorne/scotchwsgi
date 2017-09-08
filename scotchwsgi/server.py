@@ -1,5 +1,6 @@
 import logging
 import multiprocessing
+import os
 import ssl
 
 from gevent import socket
@@ -39,7 +40,8 @@ class WSGIServer(object):
             self.application,
             sock,
             self.host,
-            self.port
+            self.port,
+            os.getpid(),
         )
 
         worker_process = multiprocessing.Process(target=worker.start)
