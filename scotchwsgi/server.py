@@ -13,12 +13,13 @@ from scotchwsgi.worker import WSGIWorker
 logger = logging.getLogger(__name__)
 
 class WSGIServer(object):
-    def __init__(self, host, port, application, ssl_config=None, backlog=None):
+    def __init__(self, host, port, application, ssl_config=None, backlog=None, num_workers=4):
         self.host = host
         self.port = port
         self.application = application
         self.ssl_config = ssl_config
         self.backlog = backlog
+        self.num_workers = num_workers
         self.worker_processes = []
 
     def start(self):
@@ -48,9 +49,13 @@ class WSGIServer(object):
             os.getpid(),
         )
 
-        worker_process = multiprocessing.Process(name="worker-0", target=worker.start)
-        worker_process.start()
-        self.worker_processes.append(worker_process)
+        for worker_index in range(self.num_workers):
+            worker_process = multiprocessing.Process(
+                name="worker-%d"%worker_index,
+                target=worker.start
+            )
+            worker_process.start()
+            self.worker_processes.append(worker_process)
 
         signal.signal(signal.SIGTERM, self.handle_signal)
         signal.signal(signal.SIGINT, self.handle_signal)
