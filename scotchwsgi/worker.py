@@ -11,6 +11,7 @@ import gevent.pool
 import gevent.server
 
 from scotchwsgi import const
+from scotchwsgi.response import WSGIResponseWriter
 from scotchwsgi.request import WSGIRequest
 
 logger = logging.getLogger(__name__)
@@ -80,61 +81,15 @@ class WSGIWorker(object):
 
     def _send_response(self, request, writer):
         environ = self._get_environ(request)
-
-        headers_to_send = []
-        headers_sent = []
-
-        def write(data):
-            if not headers_to_send and not headers_sent:
-                raise AssertionError("write() before start_response()")
-
-            elif not headers_sent:
-                status, response_headers = headers_to_send[:]
-                logger.debug("Send headers %s %s", status, response_headers)
-
-                writer.write(b"HTTP/1.0 ")
-                writer.write(status.encode(const.STR_ENCODING))
-                writer.write(b"\r\n")
-
-                for header_name, header_value in response_headers:
-                    writer.write(header_name.encode(const.STR_ENCODING))
-                    writer.write(b": ")
-                    writer.write(header_value.encode(const.STR_ENCODING))
-                    writer.write(b"\r\n")
-
-                writer.write(b"\r\n")
-
-                headers_sent[:] = [status, response_headers]
-                headers_to_send[:] = []
-
-            writer.write(data)
-            writer.flush()
-
-        def start_response(status, response_headers, exc_info=None):
-            logger.debug("start_response %s %s %s", status, response_headers, exc_info)
-
-            if exc_info:
-                try:
-                    if headers_sent:
-                        logger.debug("Reraising application exception")
-                        # reraise original exception if headers already sent
-                        raise exc_info[1].with_traceback(exc_info[2])
-                finally:
-                    exc_info = None # avoid dangling circular ref
-            elif headers_sent:
-                raise AssertionError("Headers already set")
-
-            headers_to_send[:] = [status, response_headers]
-
-            return write
+        response_writer = WSGIResponseWriter(writer)
 
         logger.debug("Calling into application")
-        response_iter = self.application(environ, start_response)
+        response_iter = self.application(environ, response_writer.start_response)
 
         try:
             for response in response_iter:
                 logger.debug("Write %s", response)
-                write(response)
+                response_writer.write(response)
         except Exception as e:
             logger.error("Application aborted: %r", e)
         finally:
