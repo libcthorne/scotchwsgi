@@ -35,7 +35,7 @@ class WSGIWorker(object):
 
         server = gevent.server.StreamServer(
             self.sock,
-            self.handle_connection,
+            self._handle_connection,
             spawn=pool,
         )
         server.start()
@@ -46,7 +46,7 @@ class WSGIWorker(object):
                 break
             time.sleep(1)
 
-    def handle_connection(self, conn, addr):
+    def _handle_connection(self, conn, addr):
         logger.info("New connection: %s", addr)
 
         reader = conn.makefile('rb')
