@@ -17,11 +17,11 @@ from scotchwsgi.request import WSGIRequest
 logger = logging.getLogger(__name__)
 
 class WSGIWorker(object):
-    def __init__(self, application, sock, host, port, parent_pid):
+    def __init__(self, application, sock, hostname, parent_pid):
         self.application = application
         self.sock = sock
-        self.host = host
-        self.port = port
+        self.hostname = hostname
+        _, self.port = sock.getsockname()
         self.parent_pid = parent_pid
 
     def start(self):
@@ -73,7 +73,7 @@ class WSGIWorker(object):
         environ = {
             'REQUEST_METHOD': request.method,
             'SCRIPT_NAME': '',
-            'SERVER_NAME': self.host,
+            'SERVER_NAME': self.hostname,
             'SERVER_PORT': str(self.port),
             'SERVER_PROTOCOL': request.http_version,
             'PATH_INFO': request.path,

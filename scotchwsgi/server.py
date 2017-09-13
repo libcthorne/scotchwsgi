@@ -45,7 +45,6 @@ class WSGIServer(object):
             self.application,
             sock,
             self.host,
-            self.port,
             os.getpid(),
         )
 
