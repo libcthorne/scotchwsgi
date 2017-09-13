@@ -69,6 +69,25 @@ class WSGIWorker(object):
 
         conn.close()
 
+    def _send_response(self, request, writer):
+        environ = self._get_environ(request)
+        response_writer = WSGIResponseWriter(writer)
+
+        logger.debug("Calling into application")
+        response_iter = self.application(environ, response_writer.start_response)
+
+        try:
+            for response in response_iter:
+                logger.debug("Write %s", response)
+                response_writer.write(response)
+        except Exception as e:
+            logger.error("Application aborted: %r", e)
+        finally:
+            response_iter_close = getattr(response_iter, 'close', None)
+            if callable(response_iter_close):
+                response_iter.close()
+            logger.debug("Called into application")
+
     def _get_environ(self, request):
         environ = {
             'REQUEST_METHOD': request.method,
@@ -101,22 +120,3 @@ class WSGIWorker(object):
         environ_headers.clear()
 
         return environ
-
-    def _send_response(self, request, writer):
-        environ = self._get_environ(request)
-        response_writer = WSGIResponseWriter(writer)
-
-        logger.debug("Calling into application")
-        response_iter = self.application(environ, response_writer.start_response)
-
-        try:
-            for response in response_iter:
-                logger.debug("Write %s", response)
-                response_writer.write(response)
-        except Exception as e:
-            logger.error("Application aborted: %r", e)
-        finally:
-            response_iter_close = getattr(response_iter, 'close', None)
-            if callable(response_iter_close):
-                response_iter.close()
-            logger.debug("Called into application")
