@@ -46,6 +46,29 @@ class WSGIWorker(object):
                 break
             time.sleep(1)
 
+    def handle_connection(self, conn, addr):
+        logger.info("New connection: %s", addr)
+
+        reader = conn.makefile('rb')
+        writer = conn.makefile('wb')
+
+        request = WSGIRequest.from_reader(reader)
+        self._send_response(request, writer)
+
+        logger.debug("Closing connection")
+
+        try:
+            reader.close()
+        except IOError:
+            pass
+
+        try:
+            writer.close()
+        except IOError:
+            pass
+
+        conn.close()
+
     def _get_environ(self, request):
         environ = {
             'REQUEST_METHOD': request.method,
@@ -97,26 +120,3 @@ class WSGIWorker(object):
             if callable(response_iter_close):
                 response_iter.close()
             logger.debug("Called into application")
-
-    def handle_connection(self, conn, addr):
-        logger.info("New connection: %s", addr)
-
-        reader = conn.makefile('rb')
-        writer = conn.makefile('wb')
-
-        request = WSGIRequest.from_reader(reader)
-        self._send_response(request, writer)
-
-        logger.debug("Closing connection")
-
-        try:
-            reader.close()
-        except IOError:
-            pass
-
-        try:
-            writer.close()
-        except IOError:
-            pass
-
-        conn.close()
