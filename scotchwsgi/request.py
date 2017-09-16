@@ -18,19 +18,18 @@ class WSGIRequest(object):
         request_line = reader.readline().decode(const.STR_ENCODING)
         logger.info("Received request %s", request_line)
 
-        if request_line:
+        try:
             request_method, request_uri, http_version = request_line.split(' ', 3)
-            request_uri_split = request_uri.split('?', 1)
-            request_path = request_uri_split[0]
-            if len(request_uri_split) > 1:
-                request_query = request_uri_split[1]
-            else:
-                request_query = ''
+        except ValueError:
+            raise ValueError("Invalid request line: %s" % request_line)
+
+        http_version = http_version.rstrip()
+        request_uri_split = request_uri.split('?', 1)
+        request_path = request_uri_split[0]
+        if len(request_uri_split) > 1:
+            request_query = request_uri_split[1]
         else:
-            request_method = ''
-            request_path = ''
             request_query = ''
-            http_version = ''
 
         return request_method, request_path, request_query, http_version
 
@@ -42,7 +41,11 @@ class WSGIRequest(object):
             if header == '':
                 break
 
-            header_name, header_value = header.split(':', 1)
+            try:
+                header_name, header_value = header.split(':', 1)
+            except ValueError:
+                raise ValueError("Invalid header: %s" % header)
+
             header_name = header_name.lower()
             header_value = header_value.lstrip()
             headers[header_name] = header_value
@@ -60,6 +63,13 @@ class WSGIRequest(object):
         else:
             logger.debug("No body")
             message_body = b""
+
+        if content_length != len(message_body):
+            raise ValueError(
+                "content-length %d too large, only read %d bytes" % (
+                    content_length, len(message_body)
+                )
+            )
 
         return message_body
 

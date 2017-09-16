@@ -52,8 +52,13 @@ class WSGIWorker(object):
         reader = conn.makefile('rb')
         writer = conn.makefile('wb')
 
-        request = WSGIRequest.from_reader(reader)
-        self._send_response(request, writer)
+        try:
+            request = WSGIRequest.from_reader(reader)
+        except ValueError:
+            # TODO: Send invalid request response
+            pass
+        else:
+            self._send_response(request, writer)
 
         logger.debug("Closing connection")
 
