@@ -46,37 +46,24 @@ def error_app(environ, start_response):
 
 ################################################################
 
-from multiprocessing import Process
-from wsgiref.validate import validator
+import unittest
 
 import requests
 
-from scotchwsgi.server import WSGIServer
+from .base import WSGIAppTestCase
 
-HOST = "localhost"
-PORT = 8080
-URL = "http://{}:{}".format(HOST, PORT)
+class TestErrorApp(WSGIAppTestCase):
+    APP = error_app
 
-def get_request(path):
-    return requests.get("{}{}".format(URL, path))
+    def test_error_before_write(self):
+        r = self.get_request('/error_before_write')
+        self.assertEqual(r.status_code, 500)
+        self.assertEqual(r.text, "Something went wrong")
 
-def run_tests():
-    r = get_request('/error_before_write')
-    print(r)
-    assert r.status_code == 500
-    assert r.text == "Something went wrong"
-
-    r = get_request('/error_after_write')
-    assert r.status_code == 200
-    assert "Don't send me" not in r.text
-
-def start_server():
-    validator_app = validator(error_app)
-    server = WSGIServer(HOST, PORT, validator_app)
-    server.start()
+    def test_error_after_write(self):
+        r = self.get_request('/error_after_write')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn("Don't send me", r.text)
 
 if __name__ == '__main__':
-    p = Process(target=start_server)
-    p.start()
-    run_tests()
-    p.terminate()
+    unittest.main()
