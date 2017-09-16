@@ -1,29 +1,12 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# From PEP 3333
-def simple_app(environ, start_response):
-    """Simplest possible application object"""
-    status = '200 OK'
-    response_headers = [('Content-type', 'text/plain')]
-    start_response(status, response_headers)
-    return [
-        b"Hello world!\n",
-        b"You sent a %s request" % (
-            environ['REQUEST_METHOD'].encode('ascii')
-        ),
-    ]
-
-################################################################
-
 import unittest
 
 import requests
 
 from .base import WSGIAppTestCase
+from .simple_app import app
 
 class TestSimpleApp(WSGIAppTestCase):
-    APP = simple_app
+    APP = app
 
     def test_simple_get(self):
         r = self.get_request('/')
