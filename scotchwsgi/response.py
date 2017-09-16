@@ -21,7 +21,7 @@ class WSGIResponseWriter(object):
                     raise exc_info[1].with_traceback(exc_info[2])
             finally:
                 exc_info = None # avoid dangling circular ref
-        elif self.headers_sent:
+        elif self.headers_to_send:
             raise AssertionError("Headers already set")
 
         self.headers_to_send[:] = [status, response_headers]
@@ -29,7 +29,7 @@ class WSGIResponseWriter(object):
         return self.write
 
     def write(self, data):
-        if not self.headers_to_send and not self.headers_sent:
+        if not self.headers_to_send:
             raise AssertionError("write() before start_response()")
 
         elif not self.headers_sent:
@@ -49,7 +49,6 @@ class WSGIResponseWriter(object):
             self.writer.write(b"\r\n")
 
             self.headers_sent[:] = [status, response_headers]
-            self.headers_to_send[:] = []
 
         self.writer.write(data)
         self.writer.flush()
