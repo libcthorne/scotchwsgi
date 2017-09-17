@@ -33,7 +33,7 @@ def dummy_worker(sock, app):
         os.getpid(),
     )
 
-def start_worker_process(sock, app=dummy_app, worker_pid=None, join=False):
+def start_worker_process(sock, app, worker_pid=None, join=False):
     worker = dummy_worker(sock, app)
 
     worker_process = multiprocessing.Process(target=worker.start)
@@ -53,9 +53,11 @@ class TestWorkerParentBinding(unittest.TestCase):
 
         self.worker_pid = multiprocessing.Value('i')
 
+        app_mock = Mock()
+
         self.parent_process = multiprocessing.Process(
             target=start_worker_process,
-            args=(self.sock, dummy_app, self.worker_pid, True)
+            args=(self.sock, app_mock, self.worker_pid, True)
         )
         self.parent_process.start()
 
@@ -123,7 +125,7 @@ class TestWorkerEnviron(unittest.TestCase):
 class TestWorkerResponse(unittest.TestCase):
     def setUp(self):
         self.sock = open_test_socket()
-        self.worker = start_worker_process(self.sock)
+        self.worker = start_worker_process(self.sock, dummy_app)
         self.client_sock = socket.create_connection((TEST_HOST, TEST_PORT))
         self.reader = self.client_sock.makefile('rb')
 
