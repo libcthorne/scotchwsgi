@@ -1,10 +1,12 @@
 import multiprocessing
 import os
-import socket
 import time
 import unittest
+from io import BytesIO
+from unittest.mock import MagicMock, Mock, patch
 
 import psutil
+from gevent import socket
 
 from scotchwsgi.request import WSGIRequest
 from scotchwsgi.worker import WSGIWorker
@@ -20,24 +22,30 @@ def open_test_socket():
     return sock
 
 def dummy_app(environ, start_response):
-    start_response('200 OK', [])
-    return []
+    start_response('200 OK', [('Content-Length', '11')])
+    return [b'Hello', b' ', b'World']
 
-def dummy_worker(sock):
+def dummy_worker(sock, app):
     return WSGIWorker(
-        dummy_app,
+        app,
         sock,
         TEST_HOST,
         os.getpid(),
     )
 
-def start_worker(sock, worker_pid):
-    worker = dummy_worker(sock)
+def start_worker_process(sock, app=dummy_app, worker_pid=None, join=False):
+    worker = dummy_worker(sock, app)
 
     worker_process = multiprocessing.Process(target=worker.start)
     worker_process.start()
-    worker_pid.value = worker_process.pid
-    worker_process.join()
+
+    if worker_pid:
+        worker_pid.value = worker_process.pid
+
+    if join:
+        worker_process.join()
+
+    return worker_process
 
 class TestWorkerParentBinding(unittest.TestCase):
     def setUp(self):
@@ -46,8 +54,8 @@ class TestWorkerParentBinding(unittest.TestCase):
         self.worker_pid = multiprocessing.Value('i')
 
         self.parent_process = multiprocessing.Process(
-            target=start_worker,
-            args=(self.sock, self.worker_pid)
+            target=start_worker_process,
+            args=(self.sock, dummy_app, self.worker_pid, True)
         )
         self.parent_process.start()
 
@@ -58,18 +66,21 @@ class TestWorkerParentBinding(unittest.TestCase):
     def tearDown(self):
         if self.parent_process.is_alive():
             self.parent_process.terminate()
+            self.parent_process.join() # wait for termination
         self.sock.close()
 
     def test_worker_dies_when_parent_dies(self):
         self.assertTrue(psutil.pid_exists(self.worker_pid.value))
         self.parent_process.terminate()
+        self.parent_process.join()
         time.sleep(1)
         self.assertFalse(psutil.pid_exists(self.worker_pid.value))
 
 class TestWorkerEnviron(unittest.TestCase):
     def setUp(self):
+        app_mock = Mock()
         self.sock = open_test_socket()
-        self.worker = dummy_worker(self.sock)
+        self.worker = dummy_worker(self.sock, app_mock)
 
     def tearDown(self):
         self.sock.close()
@@ -110,3 +121,99 @@ class TestWorkerEnviron(unittest.TestCase):
         self.assertTrue(environ['wsgi.multithread'])
         self.assertTrue(environ['wsgi.multiprocess'])
         self.assertFalse(environ['wsgi.run_once'])
+
+class TestWorkerResponse(unittest.TestCase):
+    def setUp(self):
+        self.sock = open_test_socket()
+        self.worker = start_worker_process(self.sock)
+        self.client_sock = socket.create_connection((TEST_HOST, TEST_PORT))
+        self.reader = self.client_sock.makefile('rb')
+
+    def tearDown(self):
+        self.reader.close()
+        self.client_sock.close()
+        if self.worker.is_alive():
+           self.worker.terminate()
+           self.worker.join() # wait for termination
+        self.sock.close()
+
+    def test_valid_request(self):
+        self.client_sock.send(b'GET / HTTP/1.1\r\n\r\n')
+
+        status_line = self.reader.readline()
+        self.assertEqual(status_line, b'HTTP/1.1 200 OK\r\n')
+
+        headers = {}
+        header = self.reader.readline()
+        while header != b'\r\n':
+            header_name, header_value = header.split(b': ')
+            headers[header_name.lower()] = header_value.rstrip().lower()
+            header = self.reader.readline()
+
+        self.assertIn(b'content-length', headers)
+        body = self.reader.read(int(headers[b'content-length']))
+        self.assertEqual(body, b'Hello World')
+
+    def test_invalid_request(self):
+        self.client_sock.send(b'junk\r\n')
+        response = self.reader.readline()
+        self.assertEqual(response, b'')
+
+class TestWorkerClosesIterable(unittest.TestCase):
+    """
+    PEP 3333: If the iterable returned by the application has a
+    ``close()`` method, the server or gateway **must** call that
+    method upon completion of the current request, whether the request
+    was completed normally, or terminated early due to an application
+    error during iteration or an early disconnect of the browser.
+    """
+    def test_normal_termination_iterable_closed(self):
+        sock_mock = Mock()
+        sock_mock.getsockname.return_value = (TEST_HOST, TEST_PORT)
+
+        def normal_iter(self):
+            yield b'a'
+
+        iter_mock = MagicMock()
+        iter_mock.__iter__ = normal_iter
+
+        app_mock = Mock()
+        app_mock.return_value = iter_mock
+
+        request_mock = Mock()
+        request_mock.body = b''
+        request_mock.headers = {}
+
+        writer_mock = Mock()
+
+        with patch('scotchwsgi.worker.WSGIResponseWriter', return_value=Mock()):
+            worker = dummy_worker(sock_mock, app_mock)
+            worker._send_response(request_mock, writer_mock)
+
+        iter_mock.close.assert_called_once()
+
+    def test_exception_termination_iterable_closed(self):
+        sock_mock = Mock()
+        sock_mock.getsockname.return_value = (TEST_HOST, TEST_PORT)
+
+        def exception_iter(self):
+            yield b'a'
+            raise Exception("Iterator exception")
+
+        iter_mock = MagicMock()
+        iter_mock.__iter__ = exception_iter
+
+        app_mock = Mock()
+        app_mock.return_value = iter_mock
+
+        request_mock = Mock()
+        request_mock.body = b''
+        request_mock.headers = {}
+
+        writer_mock = Mock()
+
+        with patch('scotchwsgi.worker.WSGIResponseWriter', return_value=Mock()):
+            worker = dummy_worker(sock_mock, app_mock)
+            worker._send_response(request_mock, writer_mock)
+
+        iter_mock.close.assert_called_once()
