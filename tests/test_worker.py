@@ -21,10 +21,6 @@ def open_test_socket():
     sock.listen()
     return sock
 
-def dummy_app(environ, start_response):
-    start_response('200 OK', [('Content-Length', '11')])
-    return [b'Hello', b' ', b'World']
-
 def dummy_worker(sock, app):
     return WSGIWorker(
         app,
@@ -124,6 +120,10 @@ class TestWorkerEnviron(unittest.TestCase):
 
 class TestWorkerResponse(unittest.TestCase):
     def setUp(self):
+        def dummy_app(environ, start_response):
+            start_response('200 OK', [('Content-Length', '11')])
+            return [b'Hello', b' ', b'World']
+
         self.sock = open_test_socket()
         self.worker = start_worker_process(self.sock, dummy_app)
         self.client_sock = socket.create_connection((TEST_HOST, TEST_PORT))
