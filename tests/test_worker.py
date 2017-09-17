@@ -78,12 +78,10 @@ class TestWorkerParentBinding(unittest.TestCase):
 
 class TestWorkerEnviron(unittest.TestCase):
     def setUp(self):
+        sock_mock = Mock()
+        sock_mock.getsockname.return_value = (TEST_HOST, TEST_PORT)
         app_mock = Mock()
-        self.sock = open_test_socket()
-        self.worker = dummy_worker(self.sock, app_mock)
-
-    def tearDown(self):
-        self.sock.close()
+        self.worker = dummy_worker(sock_mock, app_mock)
 
     def test_environ_values(self):
         request = WSGIRequest(
