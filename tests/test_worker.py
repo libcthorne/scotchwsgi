@@ -35,7 +35,7 @@ def start_worker(sock, worker_pid):
     worker_pid.value = worker_process.pid
     worker_process.join()
 
-class TestParentWorkerBinding(unittest.TestCase):
+class TestWorkerParentBinding(unittest.TestCase):
     def setUp(self):
         self.sock = open_test_socket()
 
