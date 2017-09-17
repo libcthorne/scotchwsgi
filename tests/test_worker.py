@@ -6,6 +6,7 @@ import unittest
 
 import psutil
 
+from scotchwsgi.request import WSGIRequest
 from scotchwsgi.worker import WSGIWorker
 
 TEST_HOST = 'localhost'
@@ -22,13 +23,16 @@ def dummy_app(environ, start_response):
     start_response('200 OK', [])
     return []
 
-def start_worker(sock, worker_pid):
-    worker = WSGIWorker(
+def dummy_worker(sock):
+    return WSGIWorker(
         dummy_app,
         sock,
         TEST_HOST,
         os.getpid(),
     )
+
+def start_worker(sock, worker_pid):
+    worker = dummy_worker(sock)
 
     worker_process = multiprocessing.Process(target=worker.start)
     worker_process.start()
@@ -61,3 +65,48 @@ class TestWorkerParentBinding(unittest.TestCase):
         self.parent_process.terminate()
         time.sleep(1)
         self.assertFalse(psutil.pid_exists(self.worker_pid.value))
+
+class TestWorkerEnviron(unittest.TestCase):
+    def setUp(self):
+        self.sock = open_test_socket()
+        self.worker = dummy_worker(self.sock)
+
+    def tearDown(self):
+        self.sock.close()
+
+    def test_environ_values(self):
+        request = WSGIRequest(
+            'GET',
+            '/path',
+            'a=1&b=2',
+            'HTTP/1.1',
+            {
+                'content-type': 'text',
+                'content-length': 10,
+                'other-header': 'Value',
+            },
+            b'abc',
+        )
+
+        environ = self.worker._get_environ(request)
+
+        # CGI variables
+        self.assertEqual(environ['REQUEST_METHOD'], 'GET')
+        self.assertEqual(environ['SCRIPT_NAME'], '')
+        self.assertEqual(environ['PATH_INFO'], '/path')
+        self.assertEqual(environ['QUERY_STRING'], 'a=1&b=2')
+        self.assertEqual(environ['CONTENT_TYPE'], 'text')
+        self.assertEqual(environ['CONTENT_LENGTH'], 10)
+        self.assertEqual(environ['SERVER_NAME'], TEST_HOST)
+        self.assertEqual(environ['SERVER_PORT'], str(TEST_PORT))
+        self.assertEqual(environ['SERVER_PROTOCOL'], 'HTTP/1.1')
+        self.assertEqual(environ['HTTP_OTHER_HEADER'], 'Value')
+
+        # WSGI variables
+        self.assertEqual(environ['wsgi.version'], (1, 0))
+        self.assertEqual(environ['wsgi.url_scheme'], 'http')
+        self.assertEqual(environ['wsgi.input'].readline(), b'abc')
+        self.assertIn('wsgi.errors', environ)
+        self.assertTrue(environ['wsgi.multithread'])
+        self.assertTrue(environ['wsgi.multiprocess'])
+        self.assertFalse(environ['wsgi.run_once'])
