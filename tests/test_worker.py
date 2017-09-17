@@ -12,14 +12,13 @@ from scotchwsgi.request import WSGIRequest
 from scotchwsgi.worker import WSGIWorker
 
 TEST_HOST = 'localhost'
-TEST_PORT = 9000
 
 def open_test_socket():
     sock = socket.socket()
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((TEST_HOST, TEST_PORT))
+    sock.bind((TEST_HOST, 0))
     sock.listen()
-    return sock
+    return sock, sock.getsockname()[1]
 
 def dummy_worker(sock, app):
     return WSGIWorker(
@@ -45,7 +44,7 @@ def start_worker_process(sock, app, worker_pid=None, join=False):
 
 class TestWorkerParentBinding(unittest.TestCase):
     def setUp(self):
-        self.sock = open_test_socket()
+        self.sock, self.port = open_test_socket()
 
         self.worker_pid = multiprocessing.Value('i')
 
@@ -76,8 +75,11 @@ class TestWorkerParentBinding(unittest.TestCase):
 
 class TestWorkerEnviron(unittest.TestCase):
     def setUp(self):
+        self.hostname = TEST_HOST
+        self.port = 5000
+
         sock_mock = Mock()
-        sock_mock.getsockname.return_value = (TEST_HOST, TEST_PORT)
+        sock_mock.getsockname.return_value = (self.hostname, self.port)
         app_mock = Mock()
         self.worker = dummy_worker(sock_mock, app_mock)
 
@@ -104,8 +106,8 @@ class TestWorkerEnviron(unittest.TestCase):
         self.assertEqual(environ['QUERY_STRING'], 'a=1&b=2')
         self.assertEqual(environ['CONTENT_TYPE'], 'text')
         self.assertEqual(environ['CONTENT_LENGTH'], 10)
-        self.assertEqual(environ['SERVER_NAME'], TEST_HOST)
-        self.assertEqual(environ['SERVER_PORT'], str(TEST_PORT))
+        self.assertEqual(environ['SERVER_NAME'], self.hostname)
+        self.assertEqual(environ['SERVER_PORT'], str(self.port))
         self.assertEqual(environ['SERVER_PROTOCOL'], 'HTTP/1.1')
         self.assertEqual(environ['HTTP_OTHER_HEADER'], 'Value')
 
@@ -124,9 +126,9 @@ class TestWorkerResponse(unittest.TestCase):
             start_response('200 OK', [('Content-Length', '11')])
             return [b'Hello', b' ', b'World']
 
-        self.sock = open_test_socket()
+        self.sock, self.port = open_test_socket()
         self.worker = start_worker_process(self.sock, dummy_app)
-        self.client_sock = socket.create_connection((TEST_HOST, TEST_PORT))
+        self.client_sock = socket.create_connection((TEST_HOST, self.port))
         self.reader = self.client_sock.makefile('rb')
 
     def tearDown(self):
@@ -169,7 +171,7 @@ class TestWorkerClosesIterable(unittest.TestCase):
     """
     def test_normal_termination_iterable_closed(self):
         sock_mock = Mock()
-        sock_mock.getsockname.return_value = (TEST_HOST, TEST_PORT)
+        sock_mock.getsockname.return_value = (TEST_HOST, 5000)
 
         def normal_iter(self):
             yield b'a'
@@ -194,7 +196,7 @@ class TestWorkerClosesIterable(unittest.TestCase):
 
     def test_exception_termination_iterable_closed(self):
         sock_mock = Mock()
-        sock_mock.getsockname.return_value = (TEST_HOST, TEST_PORT)
+        sock_mock.getsockname.return_value = (TEST_HOST, 5000)
 
         def exception_iter(self):
             yield b'a'
