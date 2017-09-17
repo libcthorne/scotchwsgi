@@ -36,7 +36,7 @@ class WSGIResponseWriter(object):
             status, response_headers = self.headers_to_send[:]
             logger.debug("Send headers %s %s", status, response_headers)
 
-            self.writer.write(b"HTTP/1.0 ")
+            self.writer.write(b"HTTP/1.1 ")
             self.writer.write(status.encode(const.STR_ENCODING))
             self.writer.write(b"\r\n")
 
