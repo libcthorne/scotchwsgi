@@ -43,6 +43,8 @@ def start_worker_process(sock, app, worker_pid=None, join=False):
     return worker_process
 
 class TestWorkerParentBinding(unittest.TestCase):
+    """A worker should die when its parent process dies"""
+
     def setUp(self):
         self.sock, self.port = open_test_socket()
 
@@ -74,6 +76,8 @@ class TestWorkerParentBinding(unittest.TestCase):
         self.assertFalse(psutil.pid_exists(self.worker_pid.value))
 
 class TestWorkerEnviron(unittest.TestCase):
+    """A worker should return correct environ values"""
+
     def setUp(self):
         self.hostname = TEST_HOST
         self.port = 5000
@@ -121,6 +125,8 @@ class TestWorkerEnviron(unittest.TestCase):
         self.assertFalse(environ['wsgi.run_once'])
 
 class TestWorkerResponse(unittest.TestCase):
+    """A worker should respond to requests after it is started"""
+
     def setUp(self):
         def dummy_app(environ, start_response):
             start_response('200 OK', [('Content-Length', '11')])
@@ -169,6 +175,7 @@ class TestWorkerClosesIterable(unittest.TestCase):
     was completed normally, or terminated early due to an application
     error during iteration or an early disconnect of the browser.
     """
+
     def test_normal_termination_iterable_closed(self):
         sock_mock = Mock()
         sock_mock.getsockname.return_value = (TEST_HOST, 5000)
