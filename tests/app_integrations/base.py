@@ -9,6 +9,8 @@ from scotchwsgi.server import WSGIServer
 
 logging.basicConfig(level=logging.INFO)
 
+REQUEST_TIMEOUT = 3
+
 class WSGIAppTestCase(unittest.TestCase):
     HOST = "localhost"
     PORT = 8080
@@ -28,8 +30,8 @@ class WSGIAppTestCase(unittest.TestCase):
         server.start()
 
     def get_request(self, path, *args, **kwargs):
-        return requests.get("{}{}".format(self.URL, path), *args, **kwargs)
+        return requests.get("{}{}".format(self.URL, path), *args, timeout=REQUEST_TIMEOUT, **kwargs)
 
     def post_request(self, path, data, *args, **kwargs):
-        return requests.post("{}{}".format(self.URL, path), *args, data=data, **kwargs)
+        return requests.post("{}{}".format(self.URL, path), *args, data=data, timeout=REQUEST_TIMEOUT, **kwargs)
 
