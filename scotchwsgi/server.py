@@ -22,28 +22,28 @@ class WSGIServer(object):
         self.num_workers = num_workers
         self.worker_processes = []
 
-    def start(self):
-        sock = socket.socket()
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.host, self.port))
+    def start(self, blocking=True):
+        self.sock = socket.socket()
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind((self.host, self.port))
         if self.ssl_config:
             logger.info("Using SSL")
-            sock = ssl.wrap_socket(
-                sock,
+            self.sock = ssl.wrap_socket(
+                self.sock,
                 server_side=True,
                 **self.ssl_config,
             )
 
         if self.backlog:
-            sock.listen(self.backlog)
+            self.sock.listen(self.backlog)
         else:
-            sock.listen()
+            self.sock.listen()
 
         logger.info("Listening on %s:%d", self.host, self.port)
 
         worker = WSGIWorker(
             self.application,
-            sock,
+            self.sock,
             self.host,
             os.getpid(),
         )
@@ -60,14 +60,17 @@ class WSGIServer(object):
         signal.signal(signal.SIGINT, self.handle_signal)
 
         self.alive = True
-        while self.alive:
-            time.sleep(1)
+        if blocking:
+            while self.alive:
+                time.sleep(1)
 
     def stop(self):
         for index, worker_process in enumerate(self.worker_processes):
             logger.info("Terminating worker process %d (PID: %d)", index, worker_process.pid)
             worker_process.terminate()
+        self.worker_processes = []
         self.alive = False
+        self.sock.close()
 
     def handle_signal(self, signo, _stack_frame):
         logger.debug("Received signal %d", signo)
