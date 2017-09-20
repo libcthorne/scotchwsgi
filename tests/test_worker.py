@@ -50,11 +50,11 @@ class TestWorkerParentBinding(unittest.TestCase):
 
         self.worker_pid = multiprocessing.Value('i')
 
-        app_mock = Mock()
+        mock_app = Mock()
 
         self.parent_process = multiprocessing.Process(
             target=start_worker_process,
-            args=(self.sock, app_mock, self.worker_pid, True)
+            args=(self.sock, mock_app, self.worker_pid, True)
         )
         self.parent_process.start()
 
@@ -82,10 +82,10 @@ class TestWorkerEnviron(unittest.TestCase):
         self.hostname = TEST_HOST
         self.port = 5000
 
-        sock_mock = Mock()
-        sock_mock.getsockname.return_value = (self.hostname, self.port)
-        app_mock = Mock()
-        self.worker = dummy_worker(sock_mock, app_mock)
+        mock_sock = Mock()
+        mock_sock.getsockname.return_value = (self.hostname, self.port)
+        mock_app = Mock()
+        self.worker = dummy_worker(mock_sock, mock_app)
 
     def test_environ_values(self):
         request = WSGIRequest(
@@ -177,8 +177,8 @@ class TestWorkerClosesIterable(unittest.TestCase):
     """
 
     def test_normal_termination_iterable_closed(self):
-        sock_mock = Mock()
-        sock_mock.getsockname.return_value = (TEST_HOST, 5000)
+        mock_sock = Mock()
+        mock_sock.getsockname.return_value = (TEST_HOST, 5000)
 
         def normal_iter(self):
             yield b'a'
@@ -186,8 +186,8 @@ class TestWorkerClosesIterable(unittest.TestCase):
         iter_mock = MagicMock()
         iter_mock.__iter__ = normal_iter
 
-        app_mock = Mock()
-        app_mock.return_value = iter_mock
+        mock_app = Mock()
+        mock_app.return_value = iter_mock
 
         request_mock = Mock()
         request_mock.body = b''
@@ -196,14 +196,14 @@ class TestWorkerClosesIterable(unittest.TestCase):
         writer_mock = Mock()
 
         with patch('scotchwsgi.worker.WSGIResponseWriter', return_value=Mock()):
-            worker = dummy_worker(sock_mock, app_mock)
+            worker = dummy_worker(mock_sock, mock_app)
             worker._send_response(request_mock, writer_mock)
 
         iter_mock.close.assert_called_once()
 
     def test_exception_termination_iterable_closed(self):
-        sock_mock = Mock()
-        sock_mock.getsockname.return_value = (TEST_HOST, 5000)
+        mock_sock = Mock()
+        mock_sock.getsockname.return_value = (TEST_HOST, 5000)
 
         def exception_iter(self):
             yield b'a'
@@ -212,8 +212,8 @@ class TestWorkerClosesIterable(unittest.TestCase):
         iter_mock = MagicMock()
         iter_mock.__iter__ = exception_iter
 
-        app_mock = Mock()
-        app_mock.return_value = iter_mock
+        mock_app = Mock()
+        mock_app.return_value = iter_mock
 
         request_mock = Mock()
         request_mock.body = b''
@@ -222,7 +222,7 @@ class TestWorkerClosesIterable(unittest.TestCase):
         writer_mock = Mock()
 
         with patch('scotchwsgi.worker.WSGIResponseWriter', return_value=Mock()):
-            worker = dummy_worker(sock_mock, app_mock)
+            worker = dummy_worker(mock_sock, mock_app)
             worker._send_response(request_mock, writer_mock)
 
         iter_mock.close.assert_called_once()
