@@ -14,7 +14,7 @@ class BaseServerTestCase(unittest.TestCase):
 
         self.mock_process = patch(
             'scotchwsgi.server.multiprocessing.Process',
-            side_effect = get_mock_process
+            side_effect=get_mock_process
         )
 
         self.mock_socket_instance = Mock(getsockname=lambda: (TEST_HOST, TEST_PORT))
