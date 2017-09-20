@@ -1,5 +1,5 @@
-import sys
 import unittest
+import sys
 from io import BytesIO
 
 from scotchwsgi.response import WSGIResponseWriter
