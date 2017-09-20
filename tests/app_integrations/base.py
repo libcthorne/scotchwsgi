@@ -1,4 +1,5 @@
 import logging
+import time
 import unittest
 from multiprocessing import Process
 from wsgiref.validate import validator
@@ -19,6 +20,9 @@ class WSGIAppTestCase(unittest.TestCase):
     def setUp(self):
         self.server_process = Process(target=self.start_server)
         self.server_process.start()
+        while not self.server_process.is_alive():
+            # wait for parent process to be started
+            time.sleep(0.1)
 
     def tearDown(self):
         self.server_process.terminate()
