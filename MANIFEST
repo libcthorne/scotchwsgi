@@ -3,4 +3,8 @@ README
 setup.py
 bin/scotchwsgi
 scotchwsgi/__init__.py
+scotchwsgi/const.py
+scotchwsgi/request.py
+scotchwsgi/response.py
 scotchwsgi/server.py
+scotchwsgi/worker.py
