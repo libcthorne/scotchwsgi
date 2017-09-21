@@ -13,7 +13,7 @@ from scotchwsgi.worker import WSGIWorker
 logger = logging.getLogger(__name__)
 
 class WSGIServer(object):
-    def __init__(self, host, port, application, ssl_config=None, backlog=None, num_workers=4):
+    def __init__(self, host, port, application, ssl_config=None, backlog=None, num_workers=1):
         self.host = host
         self.port = port
         self.application = application
