@@ -67,6 +67,7 @@ class WSGIWorker(object):
             request = WSGIRequest.from_reader(reader)
         except ValueError:
             # TODO: Send invalid request response
+            logger.error("Invalid request received from: %s", addr)
             pass
         else:
             self._send_response(request, writer)
