@@ -1,4 +1,5 @@
 import sys
+from wsgiref.validate import validator
 
 def error_before_write(start_response):
     status = '200 OK'
@@ -40,3 +41,5 @@ def app(environ, start_response):
         return error_after_write(start_response)
     else:
         raise AssertionError("Unknown route %s" % route)
+
+app = validator(app)

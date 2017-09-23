@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # From PEP 3333
-def simple_app(environ, start_response):
+def app(environ, start_response):
     """Simplest possible application object"""
     status = '200 OK'
     response_headers = [('Content-type', 'text/plain')]
@@ -26,5 +26,5 @@ PORT = 8080
 from scotchwsgi.server import WSGIServer
 
 if __name__ == '__main__':
-    server = WSGIServer(HOST, PORT, simple_app)
+    server = WSGIServer(HOST, PORT, __name__)
     server.start()

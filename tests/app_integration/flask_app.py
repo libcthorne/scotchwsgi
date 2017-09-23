@@ -1,3 +1,5 @@
+from wsgiref.validate import validator
+
 from flask import Flask, redirect, request
 
 app = Flask(__name__)
@@ -27,3 +29,5 @@ def post_test():
 @app.route('/redirect')
 def redirect_test():
     return redirect('/test')
+
+app = validator(app)

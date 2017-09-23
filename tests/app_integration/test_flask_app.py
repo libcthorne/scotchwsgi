@@ -3,10 +3,9 @@ import unittest
 import requests
 
 from .base import WSGIAppTestCase
-from .flask_app import app
 
 class TestFlaskApp(WSGIAppTestCase):
-    APP = app
+    APP = 'flask_app'
 
     def test_valid_get_1(self):
         r = self.get_request('/')

@@ -7,20 +7,25 @@ from unittest.mock import Mock, patch
 
 import psutil
 
-from scotchwsgi.worker import WSGIWorker
+from scotchwsgi.worker import start_new_worker
 
 TEST_HOST = 'localhost'
 TEST_PORT = 0
 
-def start_worker_process(app, worker_pid):
+def start_worker_process(worker_pid):
     mock_sock = Mock(getsockname=lambda: (TEST_HOST, TEST_PORT))
-    worker = WSGIWorker(app, mock_sock, TEST_HOST, os.getpid())
 
     def start_worker():
         mock_gevent = patch('scotchwsgi.worker.gevent')
+        mock_importlib = patch('scotchwsgi.worker.importlib.import_module')
+
         mock_gevent.start()
-        worker.start()
+        mock_importlib.start()
+
+        start_new_worker('.', mock_sock, TEST_HOST, os.getppid())
+
         mock_gevent.stop()
+        mock_importlib.stop()
 
     worker_process = multiprocessing.Process(target=start_worker)
     worker_process.start()
@@ -35,11 +40,9 @@ class TestWorkerParentBinding(unittest.TestCase):
     def setUp(self):
         self.worker_pid = multiprocessing.Value('i')
 
-        mock_app = Mock()
-
         self.parent_process = multiprocessing.Process(
             target=start_worker_process,
-            args=(mock_app, self.worker_pid)
+            args=(self.worker_pid,)
         )
         self.parent_process.start()
 

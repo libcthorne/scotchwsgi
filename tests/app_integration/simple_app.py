@@ -1,3 +1,5 @@
+from wsgiref.validate import validator
+
 # From PEP 3333
 def app(environ, start_response):
     """Simplest possible application object"""
@@ -10,3 +12,5 @@ def app(environ, start_response):
             environ['REQUEST_METHOD'].encode('ascii')
         ),
     ]
+
+app = validator(app)

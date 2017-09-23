@@ -15,7 +15,12 @@ def stub_worker(app=None):
 
     mock_sock = Mock(getsockname=lambda: (TEST_HOST, TEST_PORT))
 
-    return WSGIWorker(app, mock_sock, TEST_HOST, os.getpid())
+    mock_import_module = patch('scotchwsgi.worker.importlib.import_module', Mock(return_value=Mock(app=app)))
+    mock_import_module.start()
+    worker = WSGIWorker('.', mock_sock, TEST_HOST, os.getpid())
+    mock_import_module.stop()
+
+    return worker
 
 class TestWorkerEnviron(unittest.TestCase):
     """A worker should return correct environ values"""

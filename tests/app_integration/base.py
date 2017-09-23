@@ -2,7 +2,6 @@ import logging
 import time
 import unittest
 from multiprocessing import Process
-from wsgiref.validate import validator
 
 import requests
 
@@ -29,8 +28,10 @@ class WSGIAppTestCase(unittest.TestCase):
         self.server_process.join() # block until terminated
 
     def start_server(self):
-        validator_app = validator(self.__class__.APP)
-        server = WSGIServer(self.HOST, self.PORT, validator_app)
+        server = WSGIServer(
+            self.HOST, self.PORT,
+            "tests.app_integration.{}".format(self.__class__.APP)
+        )
         server.start()
 
     def get_request(self, path, *args, **kwargs):

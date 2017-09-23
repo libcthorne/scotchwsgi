@@ -8,15 +8,15 @@ import time
 
 from gevent import socket
 
-from scotchwsgi.worker import WSGIWorker
+from scotchwsgi.worker import start_new_worker
 
 logger = logging.getLogger(__name__)
 
 class WSGIServer(object):
-    def __init__(self, host, port, application, ssl_config=None, backlog=None, num_workers=1):
+    def __init__(self, host, port, app_location, ssl_config=None, backlog=None, num_workers=1):
         self.host = host
         self.port = port
-        self.application = application
+        self.app_location = app_location
         self.ssl_config = ssl_config
         self.backlog = backlog
         self.num_workers = num_workers
@@ -41,17 +41,16 @@ class WSGIServer(object):
 
         logger.info("Listening on %s:%d", self.host, self.port)
 
-        worker = WSGIWorker(
-            self.application,
-            self.sock,
-            self.host,
-            os.getpid(),
-        )
-
         for worker_index in range(self.num_workers):
             worker_process = multiprocessing.Process(
                 name="worker-%d"%worker_index,
-                target=worker.start
+                target=start_new_worker,
+                args=(
+                    self.app_location,
+                    self.sock,
+                    self.host,
+                    os.getpid(),
+                )
             )
             worker_process.start()
             self.worker_processes.append(worker_process)

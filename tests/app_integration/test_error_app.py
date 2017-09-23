@@ -3,10 +3,9 @@ import unittest
 import requests
 
 from .base import WSGIAppTestCase
-from .error_app import app
 
 class TestErrorApp(WSGIAppTestCase):
-    APP = app
+    APP = 'error_app'
 
     def test_error_before_write(self):
         r = self.get_request('/error_before_write')

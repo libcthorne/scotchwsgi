@@ -3,10 +3,9 @@ import unittest
 import requests
 
 from .base import WSGIAppTestCase
-from .simple_app import app
 
 class TestSimpleApp(WSGIAppTestCase):
-    APP = app
+    APP = 'simple_app'
 
     def test_simple_get(self):
         r = self.get_request('/')

@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import importlib
 import logging
-import os
-import sys
 
 from scotchwsgi.server import make_server
 
@@ -22,12 +19,6 @@ parser.add_argument('--ca_certs', help="SSL CA certificate chain file")
 parser.add_argument('--backlog', help="Max number of queued connections", type=int, default=100)
 parser.add_argument('--num_workers', help="Number of worker processes", type=int, default=4)
 args = parser.parse_args()
-
-sys.path.append(os.getcwd())
-app_package = importlib.import_module(args.app_package)
-if not hasattr(app_package, 'app'):
-    logger.error("'app' not found in {}".format(args.app_package))
-    sys.exit(1)
 
 if args.certfile:
     ssl_config = {

@@ -1,3 +1,4 @@
+import importlib
 import logging
 import os
 import signal
@@ -17,20 +18,30 @@ from scotchwsgi.request import WSGIRequest
 logger = logging.getLogger(__name__)
 
 class WSGIWorker(object):
-    def __init__(self, application, sock, hostname, parent_pid):
-        self.application = application
+    def __init__(self, app_location, sock, hostname, parent_pid):
+        gevent.monkey.patch_all()
+
+        # Ignore interrupts to disable KeyboardInterrupt being logged
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        # Allow app location to refer to files in cwd
+        sys.path.append(os.getcwd())
+
         self.sock = sock
         self.hostname = hostname
         _, self.port = sock.getsockname()
         self.parent_pid = parent_pid
 
+        app_module = importlib.import_module(app_location)
+        if not hasattr(app_module, 'app'):
+            logger.error("'app' not found in {}".format(app_location))
+            sys.exit(1)
+
+        self.application = app_module.app
+
     def start(self):
         logger.info("Worker starting (PID: %d)", os.getpid())
 
-        # Ignore interrupts to disable KeyboardInterrupt being logged
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-        gevent.monkey.patch_all()
         pool = gevent.pool.Pool(size=const.MAX_CONNECTIONS)
 
         server = gevent.server.StreamServer(
@@ -125,3 +136,8 @@ class WSGIWorker(object):
         environ_headers.clear()
 
         return environ
+
+def start_new_worker(*args, **kwargs):
+    worker = WSGIWorker(*args, **kwargs)
+    worker.start()
+    return worker
