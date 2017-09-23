@@ -32,7 +32,7 @@ else:
 server = make_server(
     args.host,
     args.port,
-    app_package.app,
+    args.app_package,
     ssl_config=ssl_config,
     backlog=args.backlog,
     num_workers=args.num_workers,
