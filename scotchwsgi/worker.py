@@ -95,8 +95,13 @@ class WSGIWorker(object):
 
         try:
             for response in response_iter:
-                logger.debug("Write %s", response)
-                response_writer.write(response)
+                if response:
+                    logger.debug("Write %s", response)
+                    response_writer.write(response)
+
+            if not response_writer.headers_sent:
+                # force headers to be sent if nothing was written previously
+                response_writer.write(b"")
         except Exception as e:
             logger.error("Application aborted: %r", e)
         finally:
