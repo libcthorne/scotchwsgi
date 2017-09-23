@@ -17,7 +17,7 @@ parser.add_argument('--certfile', help="SSL public key certificate file")
 parser.add_argument('--keyfile', help="SSL private key file")
 parser.add_argument('--ca_certs', help="SSL CA certificate chain file")
 parser.add_argument('--backlog', help="Max number of queued connections", type=int, default=100)
-parser.add_argument('--num_workers', help="Number of worker processes", type=int, default=4)
+#parser.add_argument('--num_workers', help="Number of worker processes", type=int, default=4)
 args = parser.parse_args()
 
 if args.certfile:
@@ -35,6 +35,6 @@ server = make_server(
     args.app_module,
     ssl_config=ssl_config,
     backlog=args.backlog,
-    num_workers=args.num_workers,
+    #num_workers=args.num_workers,
 )
 server.start()
