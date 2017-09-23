@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='scotchwsgi',
-    version='0.1.6',
+    version='0.1.7',
     author='Christopher Thorne',
     author_email='libcthorne@gmail.com',
     url='https://cthorne.me',
