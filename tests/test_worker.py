@@ -92,10 +92,10 @@ class TestWorkerRequestHandling(unittest.TestCase):
         mock_conn = Mock(makefile = self._mock_makefile(b"junk\r\n"))
         mock_addr = Mock()
 
-        with patch('scotchwsgi.worker.WSGIWorker._send_response') as mock_send_response:
+        with patch('scotchwsgi.worker.WSGIWorker._send_error') as mock_send_error:
             worker = stub_worker()
             worker._handle_connection(mock_conn, mock_addr)
-            mock_send_response.assert_not_called()
+            mock_send_error.assert_called_once()
 
 class TestWorkerClosesIterable(unittest.TestCase):
     """

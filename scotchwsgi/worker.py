@@ -66,9 +66,8 @@ class WSGIWorker(object):
         try:
             request = WSGIRequest.from_reader(reader)
         except ValueError:
-            # TODO: Send invalid request response
             logger.error("Invalid request received from: %s", addr)
-            pass
+            self._send_error("400 Bad Request", writer)
         else:
             self._send_response(request, writer)
 
@@ -109,6 +108,11 @@ class WSGIWorker(object):
             if callable(response_iter_close):
                 response_iter.close()
             logger.debug("Called into application")
+
+    def _send_error(self, status_line, writer):
+        response_writer = WSGIResponseWriter(writer)
+        response_writer.start_response(status_line, ())
+        response_writer.write(b'')
 
     def _get_environ(self, request):
         environ = {
