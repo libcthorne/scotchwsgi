@@ -10,7 +10,9 @@ class WSGIResponseWriter(object):
         self.headers_to_send = []
         self.headers_sent = []
 
-    def start_response(self, status, response_headers, exc_info=None):
+    def start_response(self, status, app_headers, exc_info=None):
+        response_headers = self._get_response_headers(app_headers)
+
         logger.debug("start_response %s %s %s", status, response_headers, exc_info)
 
         if exc_info:
@@ -52,3 +54,11 @@ class WSGIResponseWriter(object):
 
         self.writer.write(data)
         self.writer.flush()
+
+    @staticmethod
+    def _get_response_headers(app_headers):
+        default_headers = [
+            ('Connection', 'close'),
+        ]
+
+        return default_headers + app_headers
