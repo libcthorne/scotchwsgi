@@ -111,7 +111,7 @@ class WSGIWorker(object):
 
     def _send_error(self, status_line, writer):
         response_writer = WSGIResponseWriter(writer)
-        response_writer.start_response(status_line, ())
+        response_writer.start_response(status_line, [])
         response_writer.write(b'')
 
     def _get_environ(self, request):
