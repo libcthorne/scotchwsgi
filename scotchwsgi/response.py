@@ -10,6 +10,7 @@ class WSGIResponseWriter(object):
         self.headers_to_send = []
         self.headers_sent = []
         self.server_headers = server_headers
+        self.wrote_content_length = False
 
     def start_response(self, status, app_headers, exc_info=None):
         response_headers = self._get_response_headers(app_headers)
@@ -48,6 +49,9 @@ class WSGIResponseWriter(object):
                 self.writer.write(b": ")
                 self.writer.write(header_value.encode(const.STR_ENCODING))
                 self.writer.write(b"\r\n")
+
+                if header_name.lower() == 'content-length':
+                    self.wrote_content_length = True
 
             self.writer.write(b"\r\n")
 

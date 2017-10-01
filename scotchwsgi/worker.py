@@ -113,6 +113,10 @@ class WSGIWorker(object):
                 # force headers to be sent if nothing was written previously
                 response_writer.write(b"")
 
+            if not response_writer.wrote_content_length:
+                # Connection must be closed to signify end of message
+                return False
+
             return True
         except Exception as e:
             logger.error("Application aborted: %r", e)
