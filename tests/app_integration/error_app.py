@@ -8,7 +8,10 @@ def error_before_write(start_response):
 
     # simulate an exception here, before headers are written
     status = '500 ERROR'
-    response_headers = [('Content-type', 'text/plain')]
+    response_headers = [
+        ('Content-type', 'text/plain'),
+        ('Content-length', str(len(b"Something went wrong"))),
+    ]
     start_response(status, response_headers, sys.exc_info())
 
     return [
@@ -17,7 +20,10 @@ def error_before_write(start_response):
 
 def error_after_write(start_response):
     status = '200 OK'
-    response_headers = [('Content-type', 'text/plain')]
+    response_headers = [
+        ('Content-type', 'text/plain'),
+        ('Content-length', str(len(b"So far so good")+len(b"Don't send me"))),
+    ]
     start_response(status, response_headers)
 
     def error():

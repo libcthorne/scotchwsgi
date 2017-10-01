@@ -11,6 +11,7 @@ from scotchwsgi.worker import start_new_worker
 
 TEST_HOST = 'localhost'
 TEST_PORT = 0
+REQUEST_TIMEOUT = 10
 
 def start_worker_process(worker_pid):
     mock_sock = Mock(getsockname=lambda: (TEST_HOST, TEST_PORT))
@@ -22,7 +23,7 @@ def start_worker_process(worker_pid):
         mock_gevent.start()
         mock_importlib.start()
 
-        start_new_worker('.', mock_sock, TEST_HOST, os.getppid())
+        start_new_worker('.', mock_sock, TEST_HOST, os.getppid(), REQUEST_TIMEOUT)
 
         mock_gevent.stop()
         mock_importlib.stop()

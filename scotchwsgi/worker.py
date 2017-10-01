@@ -18,7 +18,7 @@ from scotchwsgi.request import WSGIRequest
 logger = logging.getLogger(__name__)
 
 class WSGIWorker(object):
-    def __init__(self, app_location, sock, hostname, parent_pid):
+    def __init__(self, app_location, sock, hostname, parent_pid, request_timeout):
         gevent.monkey.patch_all()
 
         # Ignore interrupts to disable KeyboardInterrupt being logged
@@ -31,6 +31,7 @@ class WSGIWorker(object):
         self.hostname = hostname
         _, self.port = sock.getsockname()
         self.parent_pid = parent_pid
+        self.request_timeout = request_timeout
 
         app_module = importlib.import_module(app_location)
         if not hasattr(app_module, 'app'):
@@ -62,14 +63,24 @@ class WSGIWorker(object):
 
         reader = conn.makefile('rb')
         writer = conn.makefile('wb')
+        close_connection = False
 
-        try:
-            request = WSGIRequest.from_reader(reader)
-        except ValueError:
-            logger.error("Invalid request received from: %s", addr)
-            self._send_error("400 Bad Request", writer)
-        else:
-            self._send_response(request, writer)
+        while not close_connection:
+            try:
+                with gevent.Timeout(self.request_timeout):
+                    request = WSGIRequest.from_reader(reader)
+            except ValueError:
+                logger.error("Invalid request received from: %s", addr)
+                close_connection = True
+                self._send_error("400 Bad Request", writer, close_connection)
+            except gevent.Timeout:
+                logger.info("Connection timed out: %s", addr)
+                close_connection = True
+            else:
+                if request.headers.get('connection', '').lower() == 'close':
+                    close_connection = True
+                if not self._send_response(request, writer, close_connection):
+                    close_connection = True
 
         logger.debug("Closing connection")
 
@@ -85,9 +96,9 @@ class WSGIWorker(object):
 
         conn.close()
 
-    def _send_response(self, request, writer):
+    def _send_response(self, request, writer, close_connection=False):
         environ = self._get_environ(request)
-        response_writer = WSGIResponseWriter(writer)
+        response_writer = WSGIResponseWriter(writer, [('Connection', 'close')] if close_connection else None)
 
         logger.debug("Calling into application")
         response_iter = self.application(environ, response_writer.start_response)
@@ -101,18 +112,22 @@ class WSGIWorker(object):
             if not response_writer.headers_sent:
                 # force headers to be sent if nothing was written previously
                 response_writer.write(b"")
+
+            return True
         except Exception as e:
             logger.error("Application aborted: %r", e)
+            return False
         finally:
             response_iter_close = getattr(response_iter, 'close', None)
             if callable(response_iter_close):
                 response_iter.close()
             logger.debug("Called into application")
 
-    def _send_error(self, status_line, writer):
-        response_writer = WSGIResponseWriter(writer)
+    def _send_error(self, status_line, writer, close_connection=False):
+        response_writer = WSGIResponseWriter(writer, [('Connection', 'close')] if close_connection else None)
         response_writer.start_response(status_line, [])
         response_writer.write(b'')
+        return True
 
     def _get_environ(self, request):
         environ = {

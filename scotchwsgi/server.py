@@ -13,13 +13,14 @@ from scotchwsgi.worker import start_new_worker
 logger = logging.getLogger(__name__)
 
 class WSGIServer(object):
-    def __init__(self, host, port, app_location, ssl_config=None, backlog=None, num_workers=1):
+    def __init__(self, host, port, app_location, ssl_config=None, backlog=None, num_workers=1, request_timeout=10):
         self.host = host
         self.port = port
         self.app_location = app_location
         self.ssl_config = ssl_config
         self.backlog = backlog
         self.num_workers = num_workers
+        self.request_timeout = request_timeout
         self.worker_processes = []
 
     def start(self, blocking=True):
@@ -50,6 +51,7 @@ class WSGIServer(object):
                     self.sock,
                     self.host,
                     os.getpid(),
+                    self.request_timeout,
                 )
             )
             worker_process.start()

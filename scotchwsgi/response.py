@@ -5,10 +5,11 @@ from scotchwsgi import const
 logger = logging.getLogger(__name__)
 
 class WSGIResponseWriter(object):
-    def __init__(self, writer):
+    def __init__(self, writer, server_headers=None):
         self.writer = writer
         self.headers_to_send = []
         self.headers_sent = []
+        self.server_headers = server_headers
 
     def start_response(self, status, app_headers, exc_info=None):
         response_headers = self._get_response_headers(app_headers)
@@ -55,10 +56,8 @@ class WSGIResponseWriter(object):
         self.writer.write(data)
         self.writer.flush()
 
-    @staticmethod
-    def _get_response_headers(app_headers):
-        default_headers = [
-            ('Connection', 'close'),
-        ]
-
-        return default_headers + app_headers
+    def _get_response_headers(self, app_headers):
+        if self.server_headers:
+            return self.server_headers + app_headers
+        else:
+            return app_headers

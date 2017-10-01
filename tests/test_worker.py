@@ -8,6 +8,7 @@ from scotchwsgi.worker import WSGIWorker
 
 TEST_HOST = 'localhost'
 TEST_PORT = 0
+REQUEST_TIMEOUT = 10
 
 def stub_worker(app=None):
     if app is None:
@@ -17,7 +18,7 @@ def stub_worker(app=None):
 
     mock_import_module = patch('scotchwsgi.worker.importlib.import_module', Mock(return_value=Mock(app=app)))
     mock_import_module.start()
-    worker = WSGIWorker('.', mock_sock, TEST_HOST, os.getpid())
+    worker = WSGIWorker('.', mock_sock, TEST_HOST, os.getpid(), REQUEST_TIMEOUT)
     mock_import_module.stop()
 
     return worker
