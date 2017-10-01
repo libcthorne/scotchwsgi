@@ -24,7 +24,7 @@ class TestResponseWriter(unittest.TestCase):
         )
 
         self.assertEqual(self.response_writer.headers_to_send[0], '200')
-        self.assertEqual(self.response_writer.headers_to_send[1], [('Header', 'Value')])
+        self.assertIn(('Header', 'Value'), self.response_writer.headers_to_send[1])
         self.assertEqual(self.response_writer.headers_sent, [])
 
     def test_start_response_multiple_without_exc_info(self):
@@ -47,7 +47,7 @@ class TestResponseWriter(unittest.TestCase):
         )
 
         self.assertEqual(self.response_writer.headers_to_send[0], '200')
-        self.assertEqual(self.response_writer.headers_to_send[1], [('Header', 'Value')])
+        self.assertIn(('Header', 'Value'), self.response_writer.headers_to_send[1])
         self.assertEqual(self.response_writer.headers_sent, [])
 
     def test_start_response_once_with_exc_info(self):
@@ -77,7 +77,7 @@ class TestResponseWriter(unittest.TestCase):
             )
 
         self.assertEqual(self.response_writer.headers_to_send[0], '500')
-        self.assertEqual(self.response_writer.headers_to_send[1], [('Header', 'Value')])
+        self.assertIn(('Header', 'Value'), self.response_writer.headers_to_send[1])
         self.assertEqual(self.response_writer.headers_sent, [])
 
     def test_start_response_multiple_with_exc_info(self):
@@ -110,7 +110,7 @@ class TestResponseWriter(unittest.TestCase):
             )
 
         self.assertEqual(self.response_writer.headers_to_send[0], '501')
-        self.assertEqual(self.response_writer.headers_to_send[1], [('New-Header', 'New-Value')])
+        self.assertIn(('New-Header', 'New-Value'), self.response_writer.headers_to_send[1])
         self.assertEqual(self.response_writer.headers_sent, [])
 
     def test_start_response_without_exc_info_after_exc_info(self):
@@ -137,7 +137,7 @@ class TestResponseWriter(unittest.TestCase):
         )
 
         self.assertEqual(self.response_writer.headers_to_send[0], '500')
-        self.assertEqual(self.response_writer.headers_to_send[1], [('Header', 'Value')])
+        self.assertIn(('Header', 'Value'), self.response_writer.headers_to_send[1])
         self.assertEqual(self.response_writer.headers_sent, [])
 
     def test_write_before_start_response(self):

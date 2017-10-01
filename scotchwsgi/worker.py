@@ -71,15 +71,14 @@ class WSGIWorker(object):
                     request = WSGIRequest.from_reader(reader)
             except ValueError:
                 logger.error("Invalid request received from: %s", addr)
+                self._send_error("400 Bad Request", writer)
                 close_connection = True
-                self._send_error("400 Bad Request", writer, close_connection)
             except gevent.Timeout:
                 logger.info("Connection timed out: %s", addr)
                 close_connection = True
             else:
-                if request.headers.get('connection', '').lower() == 'close':
-                    close_connection = True
-                if not self._send_response(request, writer, close_connection):
+                response_writer = self._send_response(request, writer)
+                if not response_writer or response_writer.wrote_connection_close:
                     close_connection = True
 
         logger.debug("Closing connection")
@@ -96,12 +95,14 @@ class WSGIWorker(object):
 
         conn.close()
 
-    def _send_response(self, request, writer, close_connection=False):
+    def _send_response(self, request, writer):
         environ = self._get_environ(request)
-        response_writer = WSGIResponseWriter(writer, [('Connection', 'close')] if close_connection else None)
+        server_headers = self._get_server_headers(request)
+        response_writer = WSGIResponseWriter(writer, server_headers)
 
         logger.debug("Calling into application")
         response_iter = self.application(environ, response_writer.start_response)
+        logger.debug("Called into application")
 
         try:
             for response in response_iter:
@@ -113,25 +114,21 @@ class WSGIWorker(object):
                 # force headers to be sent if nothing was written previously
                 response_writer.write(b"")
 
-            if not response_writer.wrote_content_length:
-                # Connection must be closed to signify end of message
-                return False
-
-            return True
+            return response_writer
         except Exception as e:
             logger.error("Application aborted: %r", e)
-            return False
         finally:
             response_iter_close = getattr(response_iter, 'close', None)
             if callable(response_iter_close):
                 response_iter.close()
             logger.debug("Called into application")
 
-    def _send_error(self, status_line, writer, close_connection=False):
-        response_writer = WSGIResponseWriter(writer, [('Connection', 'close')] if close_connection else None)
+    def _send_error(self, status_line, writer):
+        server_headers = [('Connection', 'close')]
+        response_writer = WSGIResponseWriter(writer, server_headers)
         response_writer.start_response(status_line, [])
         response_writer.write(b'')
-        return True
+        return response_writer
 
     def _get_environ(self, request):
         environ = {
@@ -165,6 +162,12 @@ class WSGIWorker(object):
         environ_headers.clear()
 
         return environ
+
+    def _get_server_headers(self, request):
+        server_headers = []
+        if request.headers.get('connection', '').lower() == 'close':
+            server_headers.append(('Connection', 'close'))
+        return server_headers
 
 def start_new_worker(*args, **kwargs):
     worker = WSGIWorker(*args, **kwargs)
