@@ -9,6 +9,7 @@ class WSGIResponseHeaders(object):
         self.response_headers = []
         self.has_connection_close = False
         self.has_content_length = False
+        self.has_transfer_encoding_chunked = False
 
         for header_name, header_value in server_headers:
             self.response_headers.append((header_name, header_value))
@@ -24,8 +25,8 @@ class WSGIResponseHeaders(object):
                 self.has_content_length = True
 
         if not self.has_content_length and not self.has_connection_close:
-            self.response_headers.append(('Connection', 'close'))
-            self.has_connection_close = True
+            self.response_headers.append(('Transfer-Encoding', 'chunked'))
+            self.has_transfer_encoding_chunked = True
 
     def __iter__(self):
         return iter(self.response_headers)
@@ -36,6 +37,7 @@ class WSGIResponseWriter(object):
         self.headers_to_send = []
         self.headers_sent = []
         self.server_headers = server_headers or []
+        self.wrote_last_chunk = False
 
     def start_response(self, status, app_headers, exc_info=None):
         logger.debug("start_response %s %s %s", status, app_headers, exc_info)
@@ -64,6 +66,9 @@ class WSGIResponseWriter(object):
         if not self.headers_to_send:
             raise AssertionError("write() before start_response()")
 
+        if self.wrote_last_chunk:
+            raise AssertionError("write() after last chunk written")
+
         elif not self.headers_sent:
             status, response_headers = self.headers_to_send[:]
             logger.debug("Send headers %s %s", status, response_headers)
@@ -82,10 +87,30 @@ class WSGIResponseWriter(object):
 
             self.headers_sent[:] = [status, response_headers]
 
-        self.writer.write(data)
+        if self.wrote_transfer_encoding_chunked:
+            chunk_size = len(data)
+            chunk_size_hex = b"%0.2X" % len(data)
+
+            self.writer.write(chunk_size_hex)
+            self.writer.write(b"\r\n")
+
+            if chunk_size > 0:
+                self.writer.write(data)
+                self.writer.write(b"\r\n")
+            else:
+                self.wrote_last_chunk = True
+                self.writer.write(b"\r\n") # marks end of chunked encoding
+        else:
+            self.writer.write(data)
+
         self.writer.flush()
 
     @property
     def wrote_connection_close(self):
         status_, response_headers = self.headers_sent
         return response_headers.has_connection_close
+
+    @property
+    def wrote_transfer_encoding_chunked(self):
+        status_, response_headers = self.headers_sent
+        return response_headers.has_transfer_encoding_chunked

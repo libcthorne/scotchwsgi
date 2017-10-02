@@ -106,12 +106,14 @@ class WSGIWorker(object):
 
         try:
             for response in response_iter:
-                if response:
+                if response: # don't write empty strings
                     logger.debug("Write %s", response)
                     response_writer.write(response)
 
-            if not response_writer.headers_sent:
-                # force headers to be sent if nothing was written previously
+            if not response_writer.headers_sent or response_writer.wrote_transfer_encoding_chunked:
+                # Force headers to be sent if nothing was written previously.
+                # In the case of chunked encoding, write an empty (i.e. the last) chunk
+                # to mark end of message
                 response_writer.write(b"")
 
             return response_writer
