@@ -55,21 +55,38 @@ class WSGIRequest(object):
         return headers
 
     @staticmethod
-    def read_body(reader, content_length):
-        if content_length > 0:
-            logger.debug("Reading body")
+    def read_body(reader, content_length=None):
+        if content_length is not None:
+            logger.debug("Reading body (content-length: %d)", content_length)
             message_body = reader.read(content_length)
             logger.debug("Body: %s", message_body)
+
+            if content_length != len(message_body):
+                raise ValueError(
+                    "content-length %d too large, only read %d bytes" % (
+                        content_length, len(message_body)
+                    )
+                )
         else:
-            logger.debug("No body")
+            logger.debug("Reading chunked body")
             message_body = b""
 
-        if content_length != len(message_body):
-            raise ValueError(
-                "content-length %d too large, only read %d bytes" % (
-                    content_length, len(message_body)
-                )
-            )
+            while True:
+                chunk_length_hex = reader.readline().rstrip()
+                logger.debug("Chunk length hex: %s", chunk_length_hex)
+                chunk_length = int(chunk_length_hex, 16)
+                logger.debug("Reading chunk of length %d", chunk_length)
+                if chunk_length == 0:
+                    while reader.readline() not in (b"\r\n", b"\n"):
+                        continue # Ignore trailer headers
+                    break
+
+                chunk_data = reader.read(chunk_length)
+                logger.debug("Chunk: %r", chunk_data)
+                chunk_newline = reader.readline()
+
+                # Reconstruct message (though ideally the chunks should feed into the application as they arrive)
+                message_body += chunk_data
 
         return message_body
 
@@ -83,15 +100,20 @@ class WSGIRequest(object):
             reader
         )
 
-        if headers.get('transfer-encoding'):
-            raise NotImplementedError("Received unsupported transfer-encoding: %s" %
-                headers.get('transfer-encoding')
-            )
+        transfer_encoding = headers.get('transfer-encoding')
+        content_length = headers.get('content-length')
 
-        body = WSGIRequest.read_body(
-            reader,
-            int(headers.get('content-length', 0))
-        )
+        if transfer_encoding:
+            if transfer_encoding.lower() != 'chunked':
+                raise NotImplementedError(
+                    "Received unsupported transfer-encoding: %s" % transfer_encoding
+                )
+
+            body = WSGIRequest.read_body(reader)
+        elif content_length:
+            body = WSGIRequest.read_body(reader, int(content_length))
+        else:
+            body = b""
 
         return WSGIRequest(
             method=method,

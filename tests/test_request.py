@@ -116,6 +116,13 @@ class TestRequestBody(unittest.TestCase):
             b'123456789'
         )
 
+    def test_chunked_body(self):
+        reader = BytesIO(b'5\r\nhello\r\n5\r\nworld\r\n0\r\n\r\n')
+        self.assertEqual(
+            WSGIRequest.read_body(reader),
+            b'helloworld'
+        )
+
 class TestRequestReader(unittest.TestCase):
     def test_request_line_only(self):
         reader = BytesIO(b'GET /?a=1 HTTP/1.1\r\n')
@@ -163,6 +170,28 @@ class TestRequestReader(unittest.TestCase):
             {
                 'header-one': 'value-one',
                 'content-length': '5',
+            }
+        )
+
+        self.assertEqual(
+            request.body,
+            b'Hello'
+        )
+
+    def test_request_line_and_headers_and_body_chunked(self):
+        reader = BytesIO(b'GET /?a=1 HTTP/1.1\r\nheader-one: value-one\r\ntransfer-encoding: chunked\r\n\r\n5\r\nHello\r\n0\r\n\r\n')
+        request = WSGIRequest.from_reader(reader)
+
+        self.assertEqual(request.method, 'GET')
+        self.assertEqual(request.path, '/')
+        self.assertEqual(request.query, 'a=1')
+        self.assertEqual(request.http_version, 'HTTP/1.1')
+
+        self.assertDictEqual(
+            request.headers,
+            {
+                'header-one': 'value-one',
+                'transfer-encoding': 'chunked',
             }
         )
 
