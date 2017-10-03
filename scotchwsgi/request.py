@@ -83,6 +83,11 @@ class WSGIRequest(object):
             reader
         )
 
+        if headers.get('transfer-encoding'):
+            raise NotImplementedError("Received unsupported transfer-encoding: %s" %
+                headers.get('transfer-encoding')
+            )
+
         body = WSGIRequest.read_body(
             reader,
             int(headers.get('content-length', 0))

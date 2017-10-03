@@ -73,6 +73,10 @@ class WSGIWorker(object):
                 logger.error("Invalid request received from: %s", addr)
                 self._send_error("400 Bad Request", writer)
                 close_connection = True
+            except NotImplementedError:
+                logger.error("Unsupported request received from: %s", addr)
+                self._send_error("501 Not Implemented", writer)
+                close_connection = True
             except gevent.Timeout:
                 logger.info("Connection timed out: %s", addr)
                 close_connection = True
