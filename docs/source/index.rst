@@ -10,7 +10,7 @@ Welcome to ScotchWSGI's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   index
 
 Indices and tables
 ==================
