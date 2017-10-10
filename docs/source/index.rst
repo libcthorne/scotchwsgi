@@ -29,7 +29,7 @@ A ScotchWSGI server can be started by simply passing in the name of a module tha
 
 .. code-block:: none
 
-   scotchwsgi app
+   scotchwsgi file_containing_app
 
 Links
 -----
