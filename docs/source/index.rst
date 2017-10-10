@@ -32,6 +32,6 @@ A ScotchWSGI server can be started by simply passing in the name of a module tha
    scotchwsgi app
 
 Links
-=====
+-----
 
 * :ref:`modindex`
