@@ -7,16 +7,31 @@ It currently implements the majority of `HTTP/1.1 <https://tools.ietf.org/html/r
 
 *Note: This is primarily an educational side project undertaken to explore the specifications of the web and how modern web servers work. While ScotchWSGI aims to be stable, it should currently be viewed as experimental and should not be used in production.*
 
+Installation
+------------
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+The latest stable version of ScotchWSGI can be installed using pip:
 
-   index
+.. code-block:: none
 
-Indices and tables
-==================
+   pip install scotchwsgi
 
-* :ref:`genindex`
+Alternatively, you can install from `source <https://github.com/libcthorne/scotchwsgi>`_ using `setup.py`:
+
+.. code-block:: none
+
+   python setup.py install
+
+Usage
+-----
+
+A ScotchWSGI server can be started by simply passing in the name of a module that exposes an `app` object to the `scotchwsgi` command:
+
+.. code-block:: none
+
+   scotchwsgi app
+
+Links
+=====
+
 * :ref:`modindex`
-* :ref:`search`
